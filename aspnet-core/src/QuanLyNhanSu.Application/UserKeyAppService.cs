@@ -29,18 +29,31 @@ public class UserKeyAppService : ApplicationService, ITransientDependency
     }
 
     /// <summary>
-    /// Tạo user key mới với xử lý async và rollback
+    /// Tạo user key mới với xử lý async, rollback và chặn tạo nhiều Key
     /// </summary>
     [UnitOfWork]
     public virtual async Task<UserKeyResultDto> CreateUserKeyAsync(CreateUserKeyDto input)
     {
         if (CurrentUser?.Id == null)
-        throw new InvalidOperationException("DEBUG: CurrentUser.Id đang NULL — lỗi nằm ở cấu hình JWT claims, không phải ở logic tạo key.");
+            throw new InvalidOperationException("DEBUG: CurrentUser.Id đang NULL — lỗi nằm ở cấu hình JWT claims, không phải ở logic tạo key.");
+            
         // Validate role
         var validRoles = new[] { "user", "admin", "super_admin" };
         if (!Array.Exists(validRoles, element => element == input.Role))
         {
             throw new InvalidOperationException($"Role '{input.Role}' không hợp lệ. Các role hợp lệ: user, admin, super_admin");
+        }
+
+        var userId = CurrentUser!.Id!.Value;
+
+        // ---------------------------------------------------------
+        // CHỐT CHẶN BẢO MẬT: Kiểm tra xem User đã có Key nào chưa
+        // ---------------------------------------------------------
+        var existingKey = await _userKeyRepository.FirstOrDefaultAsync(x => x.UserId == userId);
+        if (existingKey != null)
+        {
+            // Ném lỗi thẳng ra ngoài, WinForms sẽ bắt được và báo màu đỏ
+            throw new InvalidOperationException($"Bạn đã có 1 Key mang quyền [{existingKey.Role.ToUpper()}] đang hoạt động! Mỗi tài khoản chỉ được phép sở hữu 1 Key duy nhất.");
         }
 
         // Tạo key duy nhất (UUID)
@@ -51,8 +64,6 @@ public class UserKeyAppService : ApplicationService, ITransientDependency
             // Bắt đầu transaction
             using (var uow = _unitOfWorkManager.Begin(isTransactional: true))
             {
-                var userId = CurrentUser!.Id!.Value;
-
                 var userKey = new UserKey(
                     id: GuidGenerator.Create(),
                     userId: userId,
