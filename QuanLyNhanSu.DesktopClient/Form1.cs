@@ -209,7 +209,7 @@ namespace QuanLyNhanSu.DesktopClient
                 txtLoginKey.Text = savedKey;
         }
 
-        private async Task XuLyDangNhapAsync()
+      private async Task XuLyDangNhapAsync()
         {
             lblLogMessage.Text = "Đang kiểm tra CSDL..."; lblLogMessage.ForeColor = Color.Blue; btnLogin.Enabled = false;
             try
@@ -219,6 +219,7 @@ namespace QuanLyNhanSu.DesktopClient
 
                 using (HttpClient client = new HttpClient(handler))
                 {
+                    // LƯỢT 1: LẤY TOKEN ĐỂ CHỨNG MINH ĐĂNG NHẬP THÀNH CÔNG
                     client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
 
                     var parameters = new Dictionary<string, string> { 
@@ -226,7 +227,7 @@ namespace QuanLyNhanSu.DesktopClient
                          { "username", txtLogUsername.Text }, 
                          { "password", txtLogPassword.Text }, 
                          { "client_id", "QuanLyNhanSu_Swagger" },
-                         { "scope", "QuanLyNhanSu offline_access profile roles email" } // xin quyền truy cập API
+                         { "scope", "QuanLyNhanSu offline_access profile roles email" } 
                     };
                     var content = new FormUrlEncodedContent(parameters);
                     
@@ -236,27 +237,60 @@ namespace QuanLyNhanSu.DesktopClient
                     {
                         var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
                         userToken = data.GetProperty("access_token").GetString() ?? "";
-                        lblLogMessage.Text = "Đăng nhập thành công!"; lblLogMessage.ForeColor = Color.Green;
                         
-                        // Ẩn Form đăng nhập hiện tại
-                        this.Hide(); 
+                        lblLogMessage.Text = "Xác thực thành công! Đang kiểm tra phân quyền..."; 
 
-                        // Tạo và mở Form Dashboard, nhớ truyền token qua
-                        FormDashboard dashboard = new FormDashboard(userToken); 
-                        dashboard.Show();
+                        // LƯỢT 2: CHỐT CHẶN LOGIC - KIỂM TRA ĐÃ CÓ KEY CHƯA
+                        using (HttpClient apiClient = new HttpClient(handler))
+                        {
+                            apiClient.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+                            apiClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
+
+                            // Gọi API lấy danh sách Key của chính user này
+                            HttpResponseMessage keyResponse = await apiClient.GetAsync("https://localhost:44387/api/app/user-key/user-keys");
+                            
+                            if (keyResponse.IsSuccessStatusCode)
+                            {
+                                var keyData = JsonSerializer.Deserialize<JsonElement>(await keyResponse.Content.ReadAsStringAsync());
+                                
+                                // Nếu mảng JSON trả về có độ dài = 0 (tức là CHƯA CÓ KEY)
+                                if (keyData.ValueKind == JsonValueKind.Array && keyData.GetArrayLength() == 0)
+                                {
+                                    MessageBox.Show("Tài khoản mới bắt buộc phải tạo Key định danh để hệ thống phân quyền!", "Yêu cầu từ hệ thống");
+                                    
+                                    // Bẻ lái sang trang tạo Key
+                                    pnlLogin.Visible = false;
+                                    pnlCreateKey.Visible = true;
+                                    lblCreateKeyMessage.Text = "";
+                                    lblKeyDisplay.Text = "";
+                                    cmbRole.SelectedIndex = 0;
+                                    txtKeyDesc.Clear();
+                                }
+                                else
+                                {
+                                    // ĐÃ CÓ KEY -> Cho qua trạm, vào thẳng Dashboard
+                                    this.Hide(); 
+                                    FormDashboard dashboard = new FormDashboard(userToken); 
+                                    dashboard.Show();
+                                }
+                            }
+                            else
+                            {
+                                lblLogMessage.Text = "Lỗi khi kiểm tra phân quyền!"; lblLogMessage.ForeColor = Color.Red;
+                            }
+                        }
                     }
                     else
                     {
                         string errorResponse = await response.Content.ReadAsStringAsync();
-                        lblLogMessage.Text = $"Từ chối ({response.StatusCode})! Xem chi tiết ở hộp thoại."; 
+                        lblLogMessage.Text = $"Từ chối ({response.StatusCode})! Sai tài khoản/mật khẩu."; 
                         lblLogMessage.ForeColor = Color.Red;
-                        MessageBox.Show("Chi tiết lỗi từ máy chủ:\n" + errorResponse, "Bắt mạch lỗi");
                     }
                 }
             }
             catch (Exception ex) { 
-                lblLogMessage.Text = "Lỗi Exception! Đảm bảo Backend đang chạy."; lblLogMessage.ForeColor = Color.Red; 
-                MessageBox.Show("Lỗi kết nối cụ thể:\n" + ex.Message, "Bắt mạch lỗi");
+                lblLogMessage.Text = "Lỗi kết nối tới Server."; lblLogMessage.ForeColor = Color.Red; 
+                MessageBox.Show("Chi tiết:\n" + ex.Message, "Bắt mạch lỗi");
             }
             finally { btnLogin.Enabled = true; }
         }
