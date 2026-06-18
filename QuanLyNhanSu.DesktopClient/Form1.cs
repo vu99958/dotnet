@@ -227,7 +227,7 @@ namespace QuanLyNhanSu.DesktopClient
                          { "password", txtLogPassword.Text }, 
                          { "client_id", "QuanLyNhanSu_Swagger" },
                          { "scope", "QuanLyNhanSu offline_access profile roles email" } // xin quyền truy cập API
-                };
+                    };
                     var content = new FormUrlEncodedContent(parameters);
                     
                     HttpResponseMessage response = await client.PostAsync("https://localhost:44387/connect/token", content);
@@ -237,15 +237,13 @@ namespace QuanLyNhanSu.DesktopClient
                         var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
                         userToken = data.GetProperty("access_token").GetString() ?? "";
                         lblLogMessage.Text = "Đăng nhập thành công!"; lblLogMessage.ForeColor = Color.Green;
-                        MessageBox.Show("Đăng nhập thành công!\nMời bạn tạo Key Role.", "Hệ thống");
                         
-                        // Chuyển sang trang tạo key
-                        pnlLogin.Visible = false;
-                        pnlCreateKey.Visible = true;
-                        lblCreateKeyMessage.Text = "";
-                        lblKeyDisplay.Text = "";
-                        cmbRole.SelectedIndex = 0;
-                        txtKeyDesc.Clear();
+                        // Ẩn Form đăng nhập hiện tại
+                        this.Hide(); 
+
+                        // Tạo và mở Form Dashboard, nhớ truyền token qua
+                        FormDashboard dashboard = new FormDashboard(userToken); 
+                        dashboard.Show();
                     }
                     else
                     {
@@ -420,6 +418,12 @@ namespace QuanLyNhanSu.DesktopClient
                             
                             // Có thể chuyển sang Dashboard hoặc screen khác
                             // MessageBox.Show("Chuyển hướng tới Dashboard...");
+                            // Ẩn Form đăng nhập hiện tại
+                            this.Hide(); 
+
+                        // Tạo và mở Form Dashboard, nhớ truyền token (hoặc key) qua
+                            FormDashboard dashboard = new FormDashboard(userToken); 
+                                dashboard.Show();
                         }
                         else
                         {
