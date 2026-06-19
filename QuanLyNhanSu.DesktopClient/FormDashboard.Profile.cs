@@ -1,0 +1,62 @@
+using System;
+using System.Drawing;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace QuanLyNhanSu.DesktopClient
+{
+    public partial class FormDashboard
+    {
+        // ==========================================
+        // LOGIC HỒ SƠ (PROFILE)
+        // ==========================================
+        private void BtnEditProfile_Click(object? sender, EventArgs e)
+        {
+            isEditMode = !isEditMode;
+            if (isEditMode)
+            {
+                txtEditEmail.ReadOnly = false; txtEditEmail.BorderStyle = BorderStyle.FixedSingle;
+                txtEditPhone.ReadOnly = false; txtEditPhone.BorderStyle = BorderStyle.FixedSingle;
+                txtEditAddress.ReadOnly = false; txtEditAddress.BorderStyle = BorderStyle.FixedSingle;
+                btnEditProfile.Text = "💾 LƯU THÔNG TIN"; btnEditProfile.BackColor = Color.OrangeRed;
+            }
+            else
+            {
+                txtEditEmail.ReadOnly = true; txtEditEmail.BorderStyle = BorderStyle.None;
+                txtEditPhone.ReadOnly = true; txtEditPhone.BorderStyle = BorderStyle.None;
+                txtEditAddress.ReadOnly = true; txtEditAddress.BorderStyle = BorderStyle.None;
+                btnEditProfile.Text = "✍️ CHỈNH SỬA HỒ SƠ"; btnEditProfile.BackColor = Color.FromArgb(32, 161, 68);
+                MessageBox.Show("Dữ liệu đã được ghi nhận trên giao diện!", "Lưu thành công");
+            }
+        }
+
+        private async Task LoadMyProfileAsync()
+        {
+            lblProName.Text = "Đang tải dữ liệu...";
+            try
+            {
+                if (string.IsNullOrEmpty(userToken)) return;
+                HttpClientHandler handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                using (HttpClient client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
+                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/my-profile/my-profile");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                        lblProName.Text = data.GetProperty("userName").GetString()?.ToUpper();
+                        txtEditEmail.Text = data.GetProperty("email").GetString();
+                        string roleStr = data.GetProperty("roles").GetString() ?? "USER";
+                        lblProRole.Text = string.IsNullOrEmpty(roleStr) ? "USER" : roleStr.ToUpper();
+                        DateTime creationTime = data.GetProperty("creationTime").GetDateTime();
+                        lblProDate.Text = "Thành viên từ: " + creationTime.ToString("dd/MM/yyyy");
+                    }
+                }
+            }
+            catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
+        }
+    }
+}
