@@ -207,9 +207,39 @@ namespace QuanLyNhanSu.DesktopClient
                                 MessageBox.Show($"Thất bại: {errMsg}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             } catch { MessageBox.Show($"Lỗi máy chủ:\n{rawResponse}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error); }
                         }
+                        
                     }
                 }
                 catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
+            }
+        }
+    // ==========================================
+        // 👉 TÍNH NĂNG TÌM KIẾM NHÂN VIÊN (Lọc Real-time)
+        // ==========================================
+        private void TxtSearchEmp_TextChanged(object? sender, EventArgs e)
+        {
+            // Lấy từ khóa người dùng gõ, chuyển hết thành chữ thường để dễ so sánh
+            string keyword = txtSearchEmp.Text.ToLower().Trim();
+
+            // Duyệt qua từng dòng trong bảng
+            foreach (DataGridViewRow row in dgvEmployees.Rows)
+            {
+                if (row.IsNewRow) continue;
+
+                // Lấy dữ liệu của 3 cột
+                string name = row.Cells["UserName"].Value?.ToString()?.ToLower() ?? "";
+                string email = row.Cells["Email"].Value?.ToString()?.ToLower() ?? "";
+                string phone = row.Cells["PhoneNumber"].Value?.ToString()?.ToLower() ?? "";
+
+                // Nếu từ khóa xuất hiện ở 1 trong 3 cột thì cho hiện dòng đó lên, ngược lại thì ẩn đi
+                if (name.Contains(keyword) || email.Contains(keyword) || phone.Contains(keyword))
+                {
+                    row.Visible = true;
+                }
+                else
+                {
+                    row.Visible = false;
+                }
             }
         }
     }

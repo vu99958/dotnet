@@ -15,7 +15,9 @@ namespace QuanLyNhanSu.DesktopClient
         // Các biến UI
         private Panel pnlDashboard = null!, pnlProfile = null!, pnlManageContent = null!, pnlAddEditEmployee = null!;
         private Button btnManageEmp = null!;
-        private TextBox txtEmpUserName = null!, txtEmpEmail = null!, txtEmpPhone = null!, txtEmpPassword = null!; 
+        private TextBox txtEmpUserName = null!, txtEmpEmail = null!, txtEmpPhone = null!, txtEmpPassword = null!;
+        // THÊM BIẾN NÀY CHO THANH TÌM KIẾM
+        private TextBox txtSearchEmp = null!;
         private Label lblEmpPassword = null!, lblAddEditTitle = null!;
         private ComboBox cbEmpRole = null!;
         private Button btnSaveEmp = null!, btnDeleteEmp = null!, btnIssueKey = null!;
@@ -107,17 +109,31 @@ namespace QuanLyNhanSu.DesktopClient
             pnlProfile.Controls.AddRange(new Control[] { lblProfileTitle, pnlCard, btnBackDash2 });
 
             // 3. QUẢN LÝ NHÂN SỰ
+            // 3. QUẢN LÝ NHÂN SỰ
             pnlManageContent = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };
             Label lblManageTitle = new Label { Text = "DANH SÁCH NHÂN VIÊN", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = primaryOrange, Location = new Point(0, 30), Width = 500, Height = 50, TextAlign = ContentAlignment.MiddleCenter };
-            dgvEmployees = new DataGridView { Location = new Point(startX, 90), Size = new Size(width, 380), BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle, AllowUserToAddRows = false, ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, RowTemplate = { Height = 35 } };
+            
+            // 👉 THÊM THANH TÌM KIẾM Ở ĐÂY
+            txtSearchEmp = new TextBox { 
+                Location = new Point(startX, 90), Width = width, 
+                Font = new Font("Segoe UI", 12F), 
+                PlaceholderText = "🔍 Nhập Tên, Email hoặc SĐT để tìm nhanh..." 
+            };
+            txtSearchEmp.TextChanged += TxtSearchEmp_TextChanged; // Bắt sự kiện khi gõ chữ
+
+            // Đẩy bảng dgvEmployees xuống vị trí Y = 135 (thay vì 90) và thu chiều cao lại một chút
+            dgvEmployees = new DataGridView { Location = new Point(startX, 135), Size = new Size(width, 335), BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle, AllowUserToAddRows = false, ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, RowTemplate = { Height = 35 } };
             dgvEmployees.Columns.Add("Id", "ID"); dgvEmployees.Columns["Id"].Visible = false; 
             dgvEmployees.Columns.Add("UserName", "TÀI KHOẢN"); dgvEmployees.Columns.Add("Email", "EMAIL"); dgvEmployees.Columns.Add("PhoneNumber", "SĐT");
             dgvEmployees.CellDoubleClick += DgvEmployees_CellDoubleClick; 
+            
             Button btnAddEmp = new Button { Text = "➕ THÊM NHÂN VIÊN", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryGreen, Location = new Point(startX, 490), Width = width, Height = 45, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnAddEmp.FlatAppearance.BorderSize = 0; btnAddEmp.Click += BtnAddEmp_Click; 
             Button btnBackDash3 = new Button { Text = "QUAY LẠI BẢNG ĐIỀU KHIỂN", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryBlue, Location = new Point(startX, 600), Width = width, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnBackDash3.FlatAppearance.BorderSize = 0; btnBackDash3.Click += (s, e) => { SwitchPanel(pnlDashboard); };
-            pnlManageContent.Controls.AddRange(new Control[] { lblManageTitle, dgvEmployees, btnAddEmp, btnBackDash3 });
+            
+            // Nhớ thêm txtSearchEmp vào pnlManageContent
+            pnlManageContent.Controls.AddRange(new Control[] { lblManageTitle, txtSearchEmp, dgvEmployees, btnAddEmp, btnBackDash3 });
 
             // 4. KHUNG THÊM / SỬA NHÂN VIÊN
             pnlAddEditEmployee = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };
