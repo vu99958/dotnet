@@ -30,7 +30,8 @@ namespace QuanLyNhanSu.DesktopClient
         private Button btnSaveEmp = null!;
         private Button btnDeleteEmp = null!;
         private Button btnIssueKey = null!;
-        private string? currentEditUserId = null; 
+        private string? currentEditUserId = null;
+        private string myCurrentRole = "user";
 
         // Các biến thẻ nhân viên
         private Label lblProName = null!;
@@ -241,6 +242,7 @@ namespace QuanLyNhanSu.DesktopClient
                     {
                         var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
                         string roleStr = data.GetProperty("roles").GetString()?.ToLower() ?? "user";
+                        myCurrentRole = roleStr;// Lưu role hiện tại vào biến toàn cục để sử dụng sau này trong các hàm khác
 
                         // Nếu là Quản trị, bật nút Quản lý lên
                         if (roleStr == "admin" || roleStr == "superadmin")
@@ -343,7 +345,21 @@ namespace QuanLyNhanSu.DesktopClient
             lblAddEditTitle.Text = "THÊM NHÂN VIÊN MỚI";
             
             txtEmpUserName.Text = ""; txtEmpEmail.Text = ""; txtEmpPhone.Text = ""; txtEmpPassword.Text = "";
-            cbEmpRole.SelectedIndex = 2; 
+            
+            // 👉 BƯỚC 3: Dọn sạch danh sách cũ và nạp danh sách mới tùy theo quyền
+            cbEmpRole.Items.Clear();
+            if (myCurrentRole == "superadmin")
+            {
+                // Super Admin thì được thấy tất cả
+                cbEmpRole.Items.AddRange(new string[] { "SuperAdmin", "Admin", "User" });
+                cbEmpRole.SelectedIndex = 2; // Mặc định chọn User
+            }
+            else
+            {
+                // Admin thường chỉ được phép thấy chữ "User"
+                cbEmpRole.Items.Add("User");
+                cbEmpRole.SelectedIndex = 0;
+            }
             
             lblEmpPassword.Visible = true; txtEmpPassword.Visible = true;
             btnDeleteEmp.Visible = false; btnIssueKey.Visible = false;
