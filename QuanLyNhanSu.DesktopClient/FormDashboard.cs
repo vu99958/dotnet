@@ -24,14 +24,17 @@ namespace QuanLyNhanSu.DesktopClient
         private TextBox txtEditPhone = null!;
         private TextBox txtEditAddress = null!;
         private Button btnEditProfile = null!;
+        
+        // 👉 CHÚ THÍCH: 2 biến này dành cho Màn hình Quản lý nhân viên
+        private Panel pnlManageContent = null!;
+        private DataGridView dgvEmployees = null!;
+        
         private bool isEditMode = false; // Theo dõi trạng thái bật/tắt sửa
 
         public FormDashboard(string token)
         {
-            // Nhận và lưu trữ token
             userToken = token; 
             
-            // Tắt tự động thu phóng và thiết lập Form
             this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "Bảng Điều Khiển - Premium";
             this.Size = new Size(500, 750);
@@ -41,7 +44,6 @@ namespace QuanLyNhanSu.DesktopClient
             this.BackColor = Color.White;
             this.Font = new Font("Segoe UI", 11F);
 
-            // Xử lý sự kiện khi đóng Form Dashboard thì thoát luôn chương trình
             this.FormClosed += (s, e) => Application.Exit();
 
             VeGiaoDienDashboard();
@@ -75,13 +77,16 @@ namespace QuanLyNhanSu.DesktopClient
 
             Button btnManageEmp = new Button { Text = "👥 QUẢN LÝ NHÂN VIÊN", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryOrange, Location = new Point(startX, 230), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnManageEmp.FlatAppearance.BorderSize = 0;
+            // 👉 CHÚ THÍCH: Gắn sự kiện khi bấm nút Quản lý sẽ mở Panel Manage và gọi API lấy danh sách
+            btnManageEmp.Click += async (s, e) => {
+                pnlDashboard.Visible = false;
+                pnlManageContent.Visible = true;
+                await LoadEmployeeListAsync();
+            };
 
             Button btnLogoutDash = new Button { Text = "ĐĂNG XUẤT", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Gray, Location = new Point(startX, 530), Width = width, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnLogoutDash.FlatAppearance.BorderSize = 0;
-            btnLogoutDash.Click += (s, e) => {
-                // Khởi động lại ứng dụng để quay về màn hình đăng nhập
-                Application.Restart();
-            };
+            btnLogoutDash.Click += (s, e) => { Application.Restart(); };
 
             pnlDashboard.Controls.AddRange(new Control[] { lblDashTitle, btnViewProfile, btnManageEmp, btnLogoutDash });
 
@@ -92,14 +97,12 @@ namespace QuanLyNhanSu.DesktopClient
             
             Label lblProfileTitle = new Label { Text = "THẺ NHÂN VIÊN", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = primaryGreen, Location = new Point(0, 30), Width = 500, Height = 50, TextAlign = ContentAlignment.MiddleCenter };
 
-            // Nới rộng chiều cao thẻ lên 480 để chứa đủ các Form nhập liệu
             Panel pnlCard = new Panel { Width = 400, Height = 480, BackColor = Color.White, Location = new Point(startX, 90), BorderStyle = BorderStyle.FixedSingle };
             
             Label lblAvatar = new Label { Text = "👤", Font = new Font("Segoe UI Emoji", 60F), AutoSize = false, Width = 120, Height = 120, TextAlign = ContentAlignment.MiddleCenter, Location = new Point(140, 15), ForeColor = primaryBlue };
             lblProName = new Label { Text = "Đang tải...", Font = new Font("Segoe UI", 18F, FontStyle.Bold), ForeColor = darkGray, AutoSize = false, Width = 400, Height = 40, TextAlign = ContentAlignment.MiddleCenter, Location = new Point(0, 140) };
             lblProRole = new Label { Text = "ROLE", Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryOrange, AutoSize = false, Width = 120, Height = 30, TextAlign = ContentAlignment.MiddleCenter, Location = new Point(140, 190) };
             
-            // --- CÁC TRƯỜNG THÔNG TIN ---
             Label lblEmailTitle = new Label { Text = "✉️ Email:", Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = darkGray, Location = new Point(20, 240), AutoSize = true };
             txtEditEmail = new TextBox { Font = new Font("Segoe UI", 11F), Location = new Point(110, 238), Width = 260, ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Color.White };
 
@@ -111,10 +114,9 @@ namespace QuanLyNhanSu.DesktopClient
 
             lblProDate = new Label { Text = "Tham gia: ...", Font = new Font("Segoe UI", 10F, FontStyle.Italic), ForeColor = Color.Gray, AutoSize = false, Width = 400, Height = 30, TextAlign = ContentAlignment.MiddleCenter, Location = new Point(0, 370) };
 
-            // Nút Kích hoạt chế độ chỉnh sửa
             btnEditProfile = new Button { Text = "✍️ CHỈNH SỬA HỒ SƠ", Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryGreen, Location = new Point(100, 415), Width = 200, Height = 40, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnEditProfile.FlatAppearance.BorderSize = 0;
-            btnEditProfile.Click += BtnEditProfile_Click; // Gắn sự kiện click
+            btnEditProfile.Click += BtnEditProfile_Click; 
 
             pnlCard.Controls.AddRange(new Control[] { 
                 lblAvatar, lblProName, lblProRole, 
@@ -130,36 +132,73 @@ namespace QuanLyNhanSu.DesktopClient
 
             pnlProfile.Controls.AddRange(new Control[] { lblProfileTitle, pnlCard, btnBackDash2 });
 
+            // ==========================================
+            // 👉 CHÚ THÍCH: 3. KHU VỰC QUẢN LÝ NHÂN SỰ (THÊM MỚI)
+            // ==========================================
+            pnlManageContent = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };
+            
+            Label lblManageTitle = new Label { Text = "DANH SÁCH NHÂN VIÊN", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = primaryOrange, Location = new Point(0, 30), Width = 500, Height = 50, TextAlign = ContentAlignment.MiddleCenter };
+
+            // Cấu hình Bảng dữ liệu (DataGridView)
+            dgvEmployees = new DataGridView
+            {
+                Location = new Point(startX, 100),
+                Size = new Size(width, 380), // Kích thước bằng với thẻ hồ sơ
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                AllowUserToAddRows = false, // Không cho người dùng gõ thêm dòng trống
+                ReadOnly = true, // Chỉ đọc, không cho sửa trực tiếp trên bảng
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect, // Bấm vào 1 ô là chọn cả hàng
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, // Tự động dãn cột cho vừa bảng
+                RowTemplate = { Height = 35 },
+                AllowUserToResizeRows = false
+            };
+
+            // Định nghĩa các cột hiển thị
+            dgvEmployees.Columns.Add("Id", "ID");
+            dgvEmployees.Columns["Id"].Visible = false; // Ẩn ID (chỉ dùng ngầm bên dưới)
+            dgvEmployees.Columns.Add("UserName", "TÀI KHOẢN");
+            dgvEmployees.Columns.Add("Email", "EMAIL");
+            dgvEmployees.Columns.Add("PhoneNumber", "SĐT");
+
+            // Nút quay lại dành riêng cho màn hình quản lý
+            Button btnBackDash3 = new Button { Text = "QUAY LẠI BẢNG ĐIỀU KHIỂN", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryBlue, Location = new Point(startX, 600), Width = width, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnBackDash3.FlatAppearance.BorderSize = 0;
+            btnBackDash3.Click += (s, e) => { pnlManageContent.Visible = false; pnlDashboard.Visible = true; };
+
+            pnlManageContent.Controls.AddRange(new Control[] { lblManageTitle, dgvEmployees, btnBackDash3 });
+
+            // 👉 CHÚ THÍCH: Nạp cả 3 màn hình vào Form chính
+            this.Controls.Add(pnlManageContent);
             this.Controls.Add(pnlProfile);
             this.Controls.Add(pnlDashboard);
         }
 
         // ==========================================
-        // Hàm Xử Lý Sự Kiện Bấm Nút Chỉnh Sửa
+        // CÁC HÀM XỬ LÝ LOGIC
         // ==========================================
+
         private void BtnEditProfile_Click(object? sender, EventArgs e)
         {
-            isEditMode = !isEditMode; // Đảo trạng thái
+            isEditMode = !isEditMode;
 
             if (isEditMode)
             {
-                // BẬT CHẾ ĐỘ SỬA: Hiện khung viền, cho phép gõ chữ
                 txtEditEmail.ReadOnly = false; txtEditEmail.BorderStyle = BorderStyle.FixedSingle;
                 txtEditPhone.ReadOnly = false; txtEditPhone.BorderStyle = BorderStyle.FixedSingle;
                 txtEditAddress.ReadOnly = false; txtEditAddress.BorderStyle = BorderStyle.FixedSingle;
                 
                 btnEditProfile.Text = "💾 LƯU THÔNG TIN";
-                btnEditProfile.BackColor = Color.OrangeRed; // Đổi màu cảnh báo
+                btnEditProfile.BackColor = Color.OrangeRed;
             }
             else
             {
-                // TẮT CHẾ ĐỘ SỬA (LƯU): Xóa khung viền, khóa gõ chữ
                 txtEditEmail.ReadOnly = true; txtEditEmail.BorderStyle = BorderStyle.None;
                 txtEditPhone.ReadOnly = true; txtEditPhone.BorderStyle = BorderStyle.None;
                 txtEditAddress.ReadOnly = true; txtEditAddress.BorderStyle = BorderStyle.None;
                 
                 btnEditProfile.Text = "✍️ CHỈNH SỬA HỒ SƠ";
-                btnEditProfile.BackColor = Color.FromArgb(32, 161, 68); // Trả về màu xanh lá
+                btnEditProfile.BackColor = Color.FromArgb(32, 161, 68);
 
                 MessageBox.Show("Dữ liệu đã được ghi nhận trên giao diện!\n(Sẽ cần thiết lập thêm API Backend để lưu vĩnh viễn vào SQL Server)", "Lưu thành công");
             }
@@ -171,11 +210,7 @@ namespace QuanLyNhanSu.DesktopClient
             lblProRole.Text = "...";
             try
             {
-                if (string.IsNullOrEmpty(userToken))
-                {
-                    lblProName.Text = "Lỗi xác thực Token!";
-                    return;
-                }
+                if (string.IsNullOrEmpty(userToken)) return;
 
                 HttpClientHandler handler = new HttpClientHandler();
                 handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
@@ -192,8 +227,6 @@ namespace QuanLyNhanSu.DesktopClient
                         var responseData = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
                         
                         lblProName.Text = responseData.GetProperty("userName").GetString()?.ToUpper();
-                        
-                        // Đổ dữ liệu Email vào TextBox thay vì Label như trước
                         txtEditEmail.Text = responseData.GetProperty("email").GetString();
                         
                         string roleStr = responseData.GetProperty("roles").GetString() ?? "USER";
@@ -208,10 +241,59 @@ namespace QuanLyNhanSu.DesktopClient
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
+        }
+
+        // 👉 CHÚ THÍCH: HÀM MỚI - GỌI API LẤY DANH SÁCH NHÂN VIÊN
+        private async Task LoadEmployeeListAsync()
+        {
+            try
             {
-                MessageBox.Show("Lỗi: " + ex.Message);
+                if (string.IsNullOrEmpty(userToken))
+                {
+                    MessageBox.Show("Phiên đăng nhập không hợp lệ hoặc đã hết hạn.", "Lỗi bảo mật");
+                    return;
+                }
+                
+                HttpClientHandler handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+
+                using (HttpClient client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+                    // Chìa khóa token để chứng minh quyền Admin
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
+
+                    // Chọc vào Backend API
+                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/employee/employee");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var jsonString = await response.Content.ReadAsStringAsync();
+                        var dataList = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+                        // Reset bảng: Xóa hết các dòng cũ trước khi tải dòng mới
+                        dgvEmployees.Rows.Clear();
+
+                        // Lặp qua từng nhân viên trong cục dữ liệu JSON và nhét vào bảng
+                        foreach (var emp in dataList.EnumerateArray())
+                        {
+                            string id = emp.GetProperty("id").GetString() ?? "";
+                            string username = emp.GetProperty("userName").GetString() ?? "";
+                            string email = emp.GetProperty("email").GetString() ?? "";
+                            string phone = emp.GetProperty("phoneNumber").GetString() ?? "";
+                            
+                            // Thêm dòng dữ liệu vào DataGridView theo đúng thứ tự cột
+                            dgvEmployees.Rows.Add(id, username, email, phone);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Bạn không có quyền xem danh sách này! (Mã lỗi: {response.StatusCode})", "Từ chối truy cập");
+                    }
+                }
             }
+            catch (Exception ex) { MessageBox.Show("Lỗi máy chủ: " + ex.Message); }
         }
     }
 }
