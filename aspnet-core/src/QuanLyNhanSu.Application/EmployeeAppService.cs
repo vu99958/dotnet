@@ -138,5 +138,36 @@ namespace QuanLyNhanSu
                 if (key != null) await _userKeyRepository.DeleteAsync(key); // Xóa rễ
             }
         }
+        // =====================================
+        // 5. CẤP LẠI KEY MỚI
+        // =====================================
+        public async Task<string> ResetKeyAsync(Guid id)
+        {
+            var currentUserId = CurrentUser.Id ?? throw new UnauthorizedAccessException("Bạn chưa đăng nhập!");
+            string myRole = await GetUserRoleAsync(currentUserId);
+            string targetRole = await GetUserRoleAsync(id);
+
+            // Kiểm tra phân quyền
+            if (myRole != "admin" && myRole != "superadmin") 
+                throw new UserFriendlyException("Từ chối: Chỉ quản trị viên mới được cấp lại Key!");
+            
+            if (targetRole == "superadmin" && currentUserId != id) 
+                throw new UserFriendlyException("Từ chối: Không được phép can thiệp vào Key của Super Admin!");
+
+            // Tìm Key cũ trong CSDL
+            var keyEntity = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == id);
+            if (keyEntity == null) 
+                throw new UserFriendlyException("Nhân viên này chưa có dữ liệu Key trong hệ thống!");
+
+            // Xóa key cũ, tạo Key mới (10 ký tự ngẫu nhiên, viết hoa)
+            string newKeyString = Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
+            
+            // Xóa dòng cũ và tạo dòng mới (cách an toàn nhất để reset)
+            await _userKeyRepository.DeleteAsync(keyEntity);
+            var newKey = new UserKey(GuidGenerator.Create(), id, newKeyString, targetRole);
+            await _userKeyRepository.InsertAsync(newKey);
+
+            return newKeyString; // Trả Key mới về cho WinForms hiển thị
+        }
     }
 }

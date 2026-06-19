@@ -451,10 +451,66 @@ namespace QuanLyNhanSu.DesktopClient
                 catch (Exception ex) { MessageBox.Show("Lỗi máy chủ: " + ex.Message); }
             }
         }
-
-        private void BtnIssueKey_Click(object? sender, EventArgs e)
+        // 👉 BẤM NÚT CẤP LẠI KEY
+        private async void BtnIssueKey_Click(object? sender, EventArgs e)
         {
-            MessageBox.Show($"Đã cấp lại Key mới cho {txtEmpUserName.Text}!\n(Gửi email nội bộ)", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (currentEditUserId == null) return;
+
+            DialogResult result = MessageBox.Show(
+                $"Bạn có chắc chắn muốn HỦY Key cũ và CẤP KEY MỚI cho tài khoản [{txtEmpUserName.Text}]?\n(Nhân viên sẽ không thể dùng Key cũ để đăng nhập nữa)", 
+                "Xác nhận Cấp Key", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                try
+                {
+                    HttpClientHandler handler = new HttpClientHandler();
+                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+
+                    using (HttpClient client = new HttpClient(handler))
+                    {
+                        client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
+
+                        // Gọi API Reset Key (Phương thức POST, không cần gửi dữ liệu body)
+                        var emptyContent = new StringContent("", Encoding.UTF8, "application/json");
+                        HttpResponseMessage response = await client.PostAsync($"https://localhost:44387/api/app/employee/{currentEditUserId}/reset-key", emptyContent);
+
+                        string rawResponse = await response.Content.ReadAsStringAsync();
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            // Lọc bỏ dấu ngoặc kép thừa trong JSON trả về
+                            string newKey = rawResponse.Replace("\"", "");
+                            
+                            MessageBox.Show(
+                                $"ĐÃ CẤP LẠI KEY THÀNH CÔNG!\n\nTài khoản: {txtEmpUserName.Text}\nKey Mới: {newKey}\n\nHãy copy Key này và gửi cho nhân viên.", 
+                                "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            if (string.IsNullOrWhiteSpace(rawResponse))
+                            {
+                                MessageBox.Show($"Lỗi API! Server không phản hồi. Mã lỗi: {response.StatusCode}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    var errorData = JsonSerializer.Deserialize<JsonElement>(rawResponse);
+                                    string errMsg = errorData.GetProperty("error").GetProperty("message").GetString() ?? "Lỗi quyền";
+                                    MessageBox.Show($"Thất bại: {errMsg}", "Lỗi phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                }
+                                catch
+                                {
+                                    MessageBox.Show($"Lỗi máy chủ ({response.StatusCode}):\n{rawResponse}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { MessageBox.Show("Lỗi máy chủ: " + ex.Message); }
+            }
         }
     }
 }
