@@ -30,4 +30,11 @@ namespace QuanLyNhanSu
         public string PhoneNumber { get; set; }
         public string Role { get; set; }
     }
+    // Khuôn chứa dữ liệu thống kê cho Bảng điều khiển
+    public class DashboardStatsDto
+    {
+        public int TotalEmployees { get; set; }
+        public int TotalAdmins { get; set; }
+        public int TotalUsers { get; set; }
+    }
 }

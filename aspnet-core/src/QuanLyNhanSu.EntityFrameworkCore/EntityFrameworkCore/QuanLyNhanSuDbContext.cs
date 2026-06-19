@@ -13,6 +13,7 @@ using Volo.Abp.PermissionManagement.EntityFrameworkCore;
 using Volo.Abp.SettingManagement.EntityFrameworkCore;
 using Volo.Abp.TenantManagement;
 using Volo.Abp.TenantManagement.EntityFrameworkCore;
+using Volo.Abp.EntityFrameworkCore.Modeling;
 
 namespace QuanLyNhanSu.EntityFrameworkCore;
 
@@ -54,6 +55,7 @@ public class QuanLyNhanSuDbContext :
     
     // Application Entities
     public DbSet<UserKey> UserKeys { get; set; }
+    public DbSet<AttendanceRecord> AttendanceRecords { get; set; } //đại diện cho bảng chấm công
 
     #endregion
 
@@ -68,6 +70,11 @@ public class QuanLyNhanSuDbContext :
         base.OnModelCreating(builder);
 
         /* Include modules to your migration db context */
+        builder.Entity<AttendanceRecord>(b =>
+        {
+            b.ToTable("AppAttendanceRecords"); // Tên bảng sẽ tạo trong SQL Server
+            b.ConfigureByConvention(); // Tự động cấu hình các cột chuẩn của ABP
+        });
 
         builder.ConfigurePermissionManagement();
         builder.ConfigureSettingManagement();
