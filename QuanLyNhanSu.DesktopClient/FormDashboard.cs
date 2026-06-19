@@ -16,13 +16,14 @@ namespace QuanLyNhanSu.DesktopClient
         private Panel pnlDashboard = null!;
         private Panel pnlProfile = null!;
         private Panel pnlManageContent = null!;
+        private Button btnManageEmp = null!; // 👉 Khai báo nút Quản lý
         
         // BIẾN CHO MÀN HÌNH THÊM/SỬA NHÂN VIÊN
         private Panel pnlAddEditEmployee = null!;
         private TextBox txtEmpUserName = null!;
         private TextBox txtEmpEmail = null!;
         private TextBox txtEmpPhone = null!;
-        private TextBox txtEmpPassword = null!; // Đã đảm bảo khai báo đầy đủ
+        private TextBox txtEmpPassword = null!; 
         private Label lblEmpPassword = null!;
         private ComboBox cbEmpRole = null!;
         private Label lblAddEditTitle = null!;
@@ -56,8 +57,11 @@ namespace QuanLyNhanSu.DesktopClient
             this.Font = new Font("Segoe UI", 11F);
 
             this.FormClosed += (s, e) => Application.Exit();
-
+            
             VeGiaoDienDashboard();
+            
+            // Kích hoạt sự kiện kiểm tra quyền khi mở Form
+            this.Load += FormDashboard_Load; 
         }
 
         private void VeGiaoDienDashboard()
@@ -83,8 +87,10 @@ namespace QuanLyNhanSu.DesktopClient
             btnViewProfile.FlatAppearance.BorderSize = 0;
             btnViewProfile.Click += async (s, e) => { SwitchPanel(pnlProfile); await LoadMyProfileAsync(); };
 
-            Button btnManageEmp = new Button { Text = "👥 QUẢN LÝ NHÂN VIÊN", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryOrange, Location = new Point(startX, 230), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            // 👉 NÚT QUẢN LÝ NHÂN VIÊN (BỊ ẨN MẶC ĐỊNH)
+            btnManageEmp = new Button { Text = "👥 QUẢN LÝ NHÂN VIÊN", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryOrange, Location = new Point(startX, 230), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnManageEmp.FlatAppearance.BorderSize = 0;
+            btnManageEmp.Visible = false; // Ẩn mặc định
             btnManageEmp.Click += async (s, e) => { SwitchPanel(pnlManageContent); await LoadEmployeeListAsync(); };
 
             Button btnLogoutDash = new Button { Text = "ĐĂNG XUẤT", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Gray, Location = new Point(startX, 530), Width = width, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
@@ -215,6 +221,39 @@ namespace QuanLyNhanSu.DesktopClient
         }
 
         // ==========================================
+        // 👉 HÀM KIỂM TRA QUYỀN KHI MỞ FORM (FORM LOAD)
+        // ==========================================
+        private async void FormDashboard_Load(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userToken)) return;
+
+                HttpClientHandler handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback = (s, c, ch, ssl) => true;
+
+                using (HttpClient client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
+                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/my-profile/my-profile");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                        string roleStr = data.GetProperty("roles").GetString()?.ToLower() ?? "user";
+
+                        // Nếu là Quản trị, bật nút Quản lý lên
+                        if (roleStr == "admin" || roleStr == "superadmin")
+                        {
+                            btnManageEmp.Visible = true;
+                        }
+                    }
+                }
+            }
+            catch { /* Im lặng nếu lỗi mạng */ }
+        }
+
+        // ==========================================
         // LOGIC HỒ SƠ (PROFILE)
         // ==========================================
         private void BtnEditProfile_Click(object? sender, EventArgs e)
@@ -330,7 +369,6 @@ namespace QuanLyNhanSu.DesktopClient
             }
         }
 
-  // 👉 BẤM NÚT LƯU -> GỌI API THÊM HOẶC SỬA TÙY VÀO TRẠNG THÁI
         private async void BtnSaveEmp_Click(object? sender, EventArgs e)
         {
             try
@@ -373,9 +411,7 @@ namespace QuanLyNhanSu.DesktopClient
                     }
                     else
                     {
-                        // BẢN VÁ LỖI JSON: Kiểm tra cẩn thận nội dung Server trả về
                         string rawResponse = await response.Content.ReadAsStringAsync();
-                        
                         if (string.IsNullOrWhiteSpace(rawResponse))
                         {
                             MessageBox.Show($"Lỗi API! Server không phản hồi JSON. Mã lỗi HTTP: {response.StatusCode}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -386,11 +422,10 @@ namespace QuanLyNhanSu.DesktopClient
                             {
                                 var errorData = JsonSerializer.Deserialize<JsonElement>(rawResponse);
                                 string errMsg = errorData.GetProperty("error").GetProperty("message").GetString() ?? "Lỗi không xác định";
-                                MessageBox.Show($"Thất bại: {errMsg}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                MessageBox.Show($"Thất bại: {errMsg}", "Lỗi phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                             catch
                             {
-                                // Nếu không phải JSON, in thẳng nguyên văn lỗi ra
                                 MessageBox.Show($"Lỗi máy chủ ({response.StatusCode}):\n{rawResponse}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         }
@@ -400,7 +435,6 @@ namespace QuanLyNhanSu.DesktopClient
             catch (Exception ex) { MessageBox.Show("Lỗi máy chủ: " + ex.Message); }
         }
 
-        // 👉 BẤM NÚT XÓA -> GỌI API DELETE CUSTOM
         private async void BtnDeleteEmp_Click(object? sender, EventArgs e)
         {
             if (currentEditUserId == null) return;
@@ -415,18 +449,16 @@ namespace QuanLyNhanSu.DesktopClient
                     using (HttpClient client = new HttpClient(handler))
                     {
                         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
-                        
                         HttpResponseMessage response = await client.DeleteAsync($"https://localhost:44387/api/app/employee/{currentEditUserId}/account");
 
                         if (response.IsSuccessStatusCode)
                         {
-                            MessageBox.Show("Xóa tài khoản thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show("Tiễn đưa thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             SwitchPanel(pnlManageContent);
                             await LoadEmployeeListAsync();
                         }
                         else
                         {
-                            // BẢN VÁ LỖI JSON
                             string rawResponse = await response.Content.ReadAsStringAsync();
                             if (string.IsNullOrWhiteSpace(rawResponse))
                             {
@@ -451,7 +483,7 @@ namespace QuanLyNhanSu.DesktopClient
                 catch (Exception ex) { MessageBox.Show("Lỗi máy chủ: " + ex.Message); }
             }
         }
-        // 👉 BẤM NÚT CẤP LẠI KEY
+
         private async void BtnIssueKey_Click(object? sender, EventArgs e)
         {
             if (currentEditUserId == null) return;
@@ -472,7 +504,6 @@ namespace QuanLyNhanSu.DesktopClient
                         client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
                         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
 
-                        // Gọi API Reset Key (Phương thức POST, không cần gửi dữ liệu body)
                         var emptyContent = new StringContent("", Encoding.UTF8, "application/json");
                         HttpResponseMessage response = await client.PostAsync($"https://localhost:44387/api/app/employee/{currentEditUserId}/reset-key", emptyContent);
 
@@ -480,12 +511,8 @@ namespace QuanLyNhanSu.DesktopClient
 
                         if (response.IsSuccessStatusCode)
                         {
-                            // Lọc bỏ dấu ngoặc kép thừa trong JSON trả về
                             string newKey = rawResponse.Replace("\"", "");
-                            
-                            MessageBox.Show(
-                                $"ĐÃ CẤP LẠI KEY THÀNH CÔNG!\n\nTài khoản: {txtEmpUserName.Text}\nKey Mới: {newKey}\n\nHãy copy Key này và gửi cho nhân viên.", 
-                                "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show($"ĐÃ CẤP LẠI KEY THÀNH CÔNG!\n\nTài khoản: {txtEmpUserName.Text}\nKey Mới: {newKey}\n\nHãy copy Key này và gửi cho nhân viên.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         else
                         {
