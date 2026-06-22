@@ -15,6 +15,7 @@ namespace QuanLyNhanSu.DesktopClient
         // Các biến UI
         private Panel pnlDashboard = null!, pnlProfile = null!, pnlManageContent = null!, pnlAddEditEmployee = null!;
         private Button btnManageEmp = null!;
+        private Button btnMenuAttendance = null!;
         private TextBox txtEmpUserName = null!, txtEmpEmail = null!, txtEmpPhone = null!, txtEmpPassword = null!;
         // THÊM BIẾN NÀY CHO THANH TÌM KIẾM
         private TextBox txtSearchEmp = null!;
@@ -45,6 +46,7 @@ namespace QuanLyNhanSu.DesktopClient
 
             this.FormClosed += (s, e) => Application.Exit();
             VeGiaoDienDashboard();
+            VeGiaoDienChamCong();
             this.Load += FormDashboard_Load; 
         }
 
