@@ -15,47 +15,54 @@ namespace QuanLyNhanSu.DesktopClient
         private Label lblAttendanceStatus = null!;
 
         // Hàm này dùng để vẽ bảng điểm danh
+    // Hàm này dùng để vẽ bảng điểm danh
         private void VeGiaoDienChamCong()
         {
-            // 1. Tạo Panel chứa toàn bộ nút
+            // 1. Tạo Panel chuẩn DockStyle.Fill giống hệt pnlProfile của bạn
             pnlAttendance = new Panel
             {
-                Location = new Point(0, 80), // Chỉnh lại tọa độ Y cho khớp với thanh Menu của bạn
-                Size = new Size(500, 670),   // Chiếm phần còn lại của Form
-                BackColor = Color.White,
-                Visible = false              // Ẩn đi, chỉ hiện khi bấm vào Menu Chấm công
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(245, 247, 250), // Màu nền xám nhạt (lightGray)
+                Visible = false              
             };
 
-            // Tiêu đề
+            // 2. Tiêu đề chính
             Label lblTitle = new Label
             {
-                Text = "📍 CHẤM CÔNG HÀNG NGÀY",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(0, 122, 204), // Xanh dương đậm
-                AutoSize = true,
-                Location = new Point(100, 30)
+                Text = "CHẤM CÔNG HÀNG NGÀY",
+                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(23, 162, 184), // Màu xanh ngọc
+                Location = new Point(0, 30),
+                Width = 500,
+                Height = 50,
+                TextAlign = ContentAlignment.MiddleCenter
             };
 
-            // Trạng thái (hiện kết quả check-in/out)
+            // 3. Khung trắng chứa nội dung (Card)
+            Panel pnlCard = new Panel { Width = 400, Height = 450, BackColor = Color.White, Location = new Point(40, 90), BorderStyle = BorderStyle.FixedSingle };
+
+            // Trạng thái
             lblAttendanceStatus = new Label
             {
-                Text = "Trạng thái hôm nay: Đang chờ...",
-                Font = new Font("Segoe UI", 11F, FontStyle.Italic),
+                Text = "Trạng thái hôm nay:\nChưa điểm danh",
+                Font = new Font("Segoe UI", 12F, FontStyle.Italic),
                 ForeColor = Color.Gray,
-                AutoSize = true,
-                Location = new Point(50, 100),
-                MaximumSize = new Size(400, 0)
+                AutoSize = false,
+                Width = 400,
+                Height = 80,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Location = new Point(0, 40)
             };
 
             // NÚT CHECK-IN (Xanh lá)
             btnCheckIn = new Button
             {
-                Text = "📍 ĐIỂM DANH (CHECK-IN)",
+                Text = "📍 ĐIỂM DANH LÀM VIỆC",
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 BackColor = Color.FromArgb(40, 167, 69), 
                 ForeColor = Color.White,
                 Size = new Size(300, 60),
-                Location = new Point(100, 170),
+                Location = new Point(50, 150),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -65,25 +72,38 @@ namespace QuanLyNhanSu.DesktopClient
             // NÚT CHECK-OUT (Đỏ)
             btnCheckOut = new Button
             {
-                Text = "🏃 TAN LÀM (CHECK-OUT)",
+                Text = "🏃 XÁC NHẬN TAN LÀM",
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 BackColor = Color.FromArgb(220, 53, 69), 
                 ForeColor = Color.White,
                 Size = new Size(300, 60),
-                Location = new Point(100, 260),
+                Location = new Point(50, 240),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             btnCheckOut.FlatAppearance.BorderSize = 0;
             btnCheckOut.Click += async (s, e) => await ThucHienChamCongAsync("check-out");
 
-            // Gom tất cả vào Panel
-            pnlAttendance.Controls.Add(lblTitle);
-            pnlAttendance.Controls.Add(lblAttendanceStatus);
-            pnlAttendance.Controls.Add(btnCheckIn);
-            pnlAttendance.Controls.Add(btnCheckOut);
+            pnlCard.Controls.AddRange(new Control[] { lblAttendanceStatus, btnCheckIn, btnCheckOut });
 
-            // Thêm Panel này vào Form chính
+            // 4. Nút Quay Lại (Quan trọng để không bị kẹt)
+            Button btnBackDash = new Button 
+            { 
+                Text = "QUAY LẠI BẢNG ĐIỀU KHIỂN", 
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold), 
+                ForeColor = Color.White, 
+                BackColor = Color.FromArgb(0, 102, 204), // Xanh dương
+                Location = new Point(40, 600), 
+                Width = 400, 
+                Height = 50, 
+                FlatStyle = FlatStyle.Flat, 
+                Cursor = Cursors.Hand 
+            };
+            btnBackDash.FlatAppearance.BorderSize = 0; 
+            btnBackDash.Click += (s, e) => { SwitchPanel(pnlDashboard); };
+
+            // Gom tất cả vào Panel chính
+            pnlAttendance.Controls.AddRange(new Control[] { lblTitle, pnlCard, btnBackDash });
             this.Controls.Add(pnlAttendance);
         }
 
@@ -94,15 +114,20 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                // Tạm khóa nút để tránh user spam bấm 2 lần
+                // Tạm khóa nút để tránh người dùng spam click (bấm liên tục 2 lần)
                 btnCheckIn.Enabled = false;
                 btnCheckOut.Enabled = false;
                 lblAttendanceStatus.Text = "Đang kết nối đến Server...";
                 lblAttendanceStatus.ForeColor = Color.DarkOrange;
 
-                using (var client = new HttpClient())
+              // 👉 THÊM 2 DÒNG NÀY ĐỂ VƯỢT QUA TƯỜNG LỬA SSL LOCALHOST
+                HttpClientHandler handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+
+                // 👉 ĐƯA HANDLER VÀO HTTPCLIENT
+                using (var client = new HttpClient(handler))
                 {
-                    // LƯU Ý: Nếu Port Server của bạn khác 44387, hãy sửa lại số ở đây nhé!
+                    // LƯU Ý: Đảm bảo Port Server của bạn vẫn là 44387
                     client.BaseAddress = new Uri("https://localhost:44387/");
                     
                     // Gắn Thẻ ra vào (Token) để chứng minh thân phận
@@ -116,13 +141,13 @@ namespace QuanLyNhanSu.DesktopClient
                     {
                         MessageBox.Show("Thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         lblAttendanceStatus.Text = $"Cập nhật mới nhất ({DateTime.Now:HH:mm}):\n" + responseString;
-                        lblAttendanceStatus.ForeColor = Color.Green;
+                        lblAttendanceStatus.ForeColor = Color.FromArgb(32, 161, 68); // Xanh lá
                     }
                     else
                     {
                         MessageBox.Show("Từ chối: " + responseString, "Cảnh báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        lblAttendanceStatus.Text = "Lỗi: Hành động không được phép.";
-                        lblAttendanceStatus.ForeColor = Color.Red;
+                        lblAttendanceStatus.Text = "Lỗi: " + responseString;
+                        lblAttendanceStatus.ForeColor = Color.FromArgb(220, 53, 69); // Đỏ
                     }
                 }
             }
@@ -133,9 +158,10 @@ namespace QuanLyNhanSu.DesktopClient
             }
             finally
             {
+                // Mở khóa lại nút bấm
                 btnCheckIn.Enabled = true;
                 btnCheckOut.Enabled = true;
             }
         }
     }
-}
+}   
