@@ -31,6 +31,7 @@ namespace QuanLyNhanSu.DesktopClient
 
         // CÁC BIẾN CHO THỐNG KÊ DASHBOARD
         private Label lblTotalEmp = null!, lblTotalAdmin = null!, lblTotalUser = null!;
+        private Panel pnlStat1 = null!, pnlStat2 = null!, pnlStat3 = null!;
 
         public FormDashboard(string token)
         {
@@ -59,32 +60,65 @@ namespace QuanLyNhanSu.DesktopClient
 
             // 1. DASHBOARD
             pnlDashboard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Visible = true };
-           Label lblDashTitle = new Label { Text = "BẢNG ĐIỀU KHIỂN", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = primaryBlue, Location = new Point(startX, 30), Width = width, Height = 80, TextAlign = ContentAlignment.MiddleCenter };
-            Panel pnlStat1 = new Panel { BackColor = primaryBlue, Width = 110, Height = 80, Location = new Point(startX, 120), BorderStyle = BorderStyle.FixedSingle };
+            Label lblDashTitle = new Label { Text = "BẢNG ĐIỀU KHIỂN", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = primaryBlue, Location = new Point(startX, 30), Width = width, Height = 80, TextAlign = ContentAlignment.MiddleCenter };
+            
+            pnlStat1 = new Panel { BackColor = primaryBlue, Width = 110, Height = 80, Location = new Point(startX, 120), BorderStyle = BorderStyle.FixedSingle, Visible = false };
             pnlStat1.Controls.Add(new Label { Text = "TỔNG SỐ", Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Color.White, Location = new Point(10, 10) });
             lblTotalEmp = new Label { Text = "-", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = Color.White, Location = new Point(10, 30), AutoSize = true };
             pnlStat1.Controls.Add(lblTotalEmp);
 
-            Panel pnlStat2 = new Panel { BackColor = warningYellow, Width = 110, Height = 80, Location = new Point(startX + 125, 120), BorderStyle = BorderStyle.FixedSingle };
+            pnlStat2 = new Panel { BackColor = warningYellow, Width = 110, Height = 80, Location = new Point(startX + 125, 120), BorderStyle = BorderStyle.FixedSingle, Visible = false };
             pnlStat2.Controls.Add(new Label { Text = "QUẢN TRỊ", Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Color.White, Location = new Point(10, 10) });
             lblTotalAdmin = new Label { Text = "-", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = Color.White, Location = new Point(10, 30), AutoSize = true };
             pnlStat2.Controls.Add(lblTotalAdmin);
 
-           Panel pnlStat3 = new Panel { BackColor = primaryGreen, Width = 110, Height = 80, Location = new Point(startX + 250, 120), BorderStyle = BorderStyle.FixedSingle };
+            pnlStat3 = new Panel { BackColor = primaryGreen, Width = 110, Height = 80, Location = new Point(startX + 250, 120), BorderStyle = BorderStyle.FixedSingle, Visible = false };
             pnlStat3.Controls.Add(new Label { Text = "NHÂN VIÊN", Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Color.White, Location = new Point(10, 10) });
             lblTotalUser = new Label { Text = "-", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = Color.White, Location = new Point(10, 30), AutoSize = true };
             pnlStat3.Controls.Add(lblTotalUser);
 
+            // 1. Chức năng cho ô TỔNG SỐ (Hiển thị TẤT CẢ)
+            EventHandler clickTongSo = async (s, e) => { 
+                SwitchPanel(pnlManageContent); 
+                txtSearchEmp.Text = ""; // Xóa bộ lọc để hiện tất cả
+                await LoadEmployeeListAsync(); 
+            };
+            pnlStat1.Cursor = Cursors.Hand;
+            pnlStat1.Click += clickTongSo;
+            foreach (Control c in pnlStat1.Controls) { c.Cursor = Cursors.Hand; c.Click += clickTongSo; }
+
+            // 2. Chức năng cho ô QUẢN TRỊ (Tự động lọc Admin)
+            EventHandler clickQuanTri = async (s, e) => { 
+                SwitchPanel(pnlManageContent); 
+                await LoadEmployeeListAsync(); 
+                // Tự động điền "admin" vào thanh tìm kiếm để kích hoạt bộ lọc của bạn
+                txtSearchEmp.Text = "admin"; 
+            };
+            pnlStat2.Cursor = Cursors.Hand;
+            pnlStat2.Click += clickQuanTri;
+            foreach (Control c in pnlStat2.Controls) { c.Cursor = Cursors.Hand; c.Click += clickQuanTri; }
+
+            // 3. Chức năng cho ô NHÂN VIÊN (Tự động lọc User)
+            EventHandler clickNhanVien = async (s, e) => { 
+                SwitchPanel(pnlManageContent); 
+                await LoadEmployeeListAsync(); 
+                // Tự động điền "user" vào thanh tìm kiếm
+                txtSearchEmp.Text = "user"; 
+            };
+            pnlStat3.Cursor = Cursors.Hand;
+            pnlStat3.Click += clickNhanVien;
+            foreach (Control c in pnlStat3.Controls) { c.Cursor = Cursors.Hand; c.Click += clickNhanVien; }
+
+            // Đã sửa: Bổ sung chữ "Button" vào đầu dòng
             Button btnViewProfile = new Button { Text = "👤 HỒ SƠ CỦA TÔI", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryGreen, Location = new Point(startX, 230), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnViewProfile.FlatAppearance.BorderSize = 0;
             btnViewProfile.Click += async (s, e) => { SwitchPanel(pnlProfile); await LoadMyProfileAsync(); };
 
             // NÚT MỞ PANEL CHẤM CÔNG
-            Button btnMenuAttendance = new Button { Text = "⏰ CHẤM CÔNG HÀNG NGÀY", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(23, 162, 184), Location = new Point(startX, 300), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnMenuAttendance = new Button { Text = "⏰ CHẤM CÔNG HÀNG NGÀY", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(23, 162, 184), Location = new Point(startX, 300), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnMenuAttendance.FlatAppearance.BorderSize = 0;
-            btnMenuAttendance.Click += (s, e) => { SwitchPanel(pnlAttendance); }; // Chuyển sang màn hình chấm công
+            btnMenuAttendance.Click += (s, e) => { SwitchPanel(pnlAttendance); };
 
-            // Sửa lại tọa độ Y của nút Quản lý nhân viên (đẩy nó xuống dưới nút Chấm công)
             btnManageEmp = new Button { Text = "👥 QUẢN LÝ NHÂN VIÊN", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryOrange, Location = new Point(startX, 370), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnManageEmp.FlatAppearance.BorderSize = 0; btnManageEmp.Visible = false; 
             btnManageEmp.Click += async (s, e) => { SwitchPanel(pnlManageContent); await LoadEmployeeListAsync(); };
@@ -93,7 +127,6 @@ namespace QuanLyNhanSu.DesktopClient
             btnLogoutDash.FlatAppearance.BorderSize = 0;
             btnLogoutDash.Click += (s, e) => { Application.Restart(); };
 
-            // NHỚ CẬP NHẬT: Thêm btnMenuAttendance vào danh sách Control của pnlDashboard
             pnlDashboard.Controls.AddRange(new Control[] { lblDashTitle, pnlStat1, pnlStat2, pnlStat3, btnViewProfile, btnMenuAttendance, btnManageEmp, btnLogoutDash });
 
             // 2. PROFILE CARD
@@ -117,19 +150,16 @@ namespace QuanLyNhanSu.DesktopClient
             pnlProfile.Controls.AddRange(new Control[] { lblProfileTitle, pnlCard, btnBackDash2 });
 
             // 3. QUẢN LÝ NHÂN SỰ
-            // 3. QUẢN LÝ NHÂN SỰ
             pnlManageContent = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };
             Label lblManageTitle = new Label { Text = "DANH SÁCH NHÂN VIÊN", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = primaryOrange, Location = new Point(0, 30), Width = 500, Height = 50, TextAlign = ContentAlignment.MiddleCenter };
             
-            // 👉 THÊM THANH TÌM KIẾM Ở ĐÂY
             txtSearchEmp = new TextBox { 
                 Location = new Point(startX, 90), Width = width, 
                 Font = new Font("Segoe UI", 12F), 
                 PlaceholderText = "🔍 Nhập Tên, Email hoặc SĐT để tìm nhanh..." 
             };
-            txtSearchEmp.TextChanged += TxtSearchEmp_TextChanged; // Bắt sự kiện khi gõ chữ
+            txtSearchEmp.TextChanged += TxtSearchEmp_TextChanged;
 
-            // Đẩy bảng dgvEmployees xuống vị trí Y = 135 (thay vì 90) và thu chiều cao lại một chút
             dgvEmployees = new DataGridView { Location = new Point(startX, 135), Size = new Size(width, 335), BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle, AllowUserToAddRows = false, ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, RowTemplate = { Height = 35 } };
             dgvEmployees.Columns.Add("Id", "ID"); dgvEmployees.Columns["Id"].Visible = false; 
             dgvEmployees.Columns.Add("UserName", "TÀI KHOẢN"); dgvEmployees.Columns.Add("Email", "EMAIL"); dgvEmployees.Columns.Add("PhoneNumber", "SĐT");
@@ -140,7 +170,6 @@ namespace QuanLyNhanSu.DesktopClient
             Button btnBackDash3 = new Button { Text = "QUAY LẠI BẢNG ĐIỀU KHIỂN", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryBlue, Location = new Point(startX, 600), Width = width, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnBackDash3.FlatAppearance.BorderSize = 0; btnBackDash3.Click += (s, e) => { SwitchPanel(pnlDashboard); };
             
-            // Nhớ thêm txtSearchEmp vào pnlManageContent
             pnlManageContent.Controls.AddRange(new Control[] { lblManageTitle, txtSearchEmp, dgvEmployees, btnAddEmp, btnBackDash3 });
 
             // 4. KHUNG THÊM / SỬA NHÂN VIÊN
@@ -171,17 +200,20 @@ namespace QuanLyNhanSu.DesktopClient
             btnCancelEdit.FlatAppearance.BorderSize = 0; btnCancelEdit.Click += (s, e) => { SwitchPanel(pnlManageContent); };
             pnlAddEditEmployee.Controls.AddRange(new Control[] { lblAddEditTitle, pnlFormEdit, btnSaveEmp, btnIssueKey, btnDeleteEmp, btnCancelEdit });
 
-            this.Controls.Add(pnlAddEditEmployee); this.Controls.Add(pnlManageContent); this.Controls.Add(pnlProfile); this.Controls.Add(pnlDashboard);
-            this.Controls.Add(pnlAttendance); this.Controls.Add(pnlAddEditEmployee); this.Controls.Add(pnlManageContent); this.Controls.Add(pnlProfile); this.Controls.Add(pnlDashboard);
-            // Bạn nhớ chèn thêm btnMenuAttendance vào giữa nhé
-            pnlDashboard.Controls.AddRange(new Control[] { lblDashTitle, pnlStat1, pnlStat2, pnlStat3, btnViewProfile, btnMenuAttendance, btnManageEmp, btnLogoutDash });
+            // Đã sửa: Xóa bỏ các dòng lặp dư thừa
+            this.Controls.Add(pnlAttendance); 
+            this.Controls.Add(pnlAddEditEmployee); 
+            this.Controls.Add(pnlManageContent); 
+            this.Controls.Add(pnlProfile); 
+            this.Controls.Add(pnlDashboard);
         }
 
         private void SwitchPanel(Panel target)
         {
             pnlDashboard.Visible = false; pnlProfile.Visible = false; pnlManageContent.Visible = false; pnlAddEditEmployee.Visible = false;
-            if(pnlAttendance != null) pnlAttendance.Visible = false;    //👉 THÊM DÒNG NÀY ĐỂ ẨN
+            if(pnlAttendance != null) pnlAttendance.Visible = false; 
             target.Visible = true;
+            target.BringToFront();
         }
 
         private async void FormDashboard_Load(object? sender, EventArgs e)
@@ -201,7 +233,15 @@ namespace QuanLyNhanSu.DesktopClient
                     {
                         var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
                         myCurrentRole = data.GetProperty("roles").GetString()?.ToLower() ?? "user";
-                        if (myCurrentRole == "admin" || myCurrentRole == "superadmin") btnManageEmp.Visible = true;
+                        
+                        // Đã sửa: Gom cụm lệnh hiển thị vào chung một dấu ngoặc nhọn
+                        if (myCurrentRole == "admin" || myCurrentRole == "superadmin") 
+                        {
+                            btnManageEmp.Visible = true;
+                            pnlStat1.Visible = true;
+                            pnlStat2.Visible = true;
+                            pnlStat3.Visible = true;
+                        }  
                     }
 
                     // 2. Load API Thống kê
