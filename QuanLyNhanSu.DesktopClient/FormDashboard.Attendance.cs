@@ -7,39 +7,37 @@ using System.Windows.Forms;
 
 namespace QuanLyNhanSu.DesktopClient
 {
+    // Bắt buộc dùng partial class để nối với file FormDashboard.cs
     public partial class FormDashboard
     {
-        // Các biến UI cho phần Chấm công
+        // CÁC BIẾN CHỈ DÀNH CHO MODULE CHẤM CÔNG SẼ ĐƯỢC ĐẶT Ở ĐÂY
         private Panel pnlAttendance = null!;
+        private Label lblClock = null!, lblAttendanceStatus = null!;
         private Button btnCheckIn = null!, btnCheckOut = null!;
-        private Label lblAttendanceStatus = null!;
+        private System.Windows.Forms.Timer timerClock = null!;
 
-        // Hàm này dùng để vẽ bảng điểm danh
-    // Hàm này dùng để vẽ bảng điểm danh
         private void VeGiaoDienChamCong()
         {
-            // 1. Tạo Panel chuẩn DockStyle.Fill giống hệt pnlProfile của bạn
-            pnlAttendance = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(245, 247, 250), // Màu nền xám nhạt (lightGray)
-                Visible = false              
-            };
+            Color primaryBlue = Color.FromArgb(0, 102, 204), primaryGreen = Color.FromArgb(32, 161, 68);
+            Color dangerRed = Color.FromArgb(220, 53, 69);
+            Color lightGray = Color.FromArgb(245, 247, 250), darkGray = Color.FromArgb(80, 80, 80);
+            int startX = 50, width = 400; // Tinh chỉnh lại tọa độ để nằm giữa đẹp hơn
 
-            // 2. Tiêu đề chính
-            Label lblTitle = new Label
-            {
-                Text = "CHẤM CÔNG HÀNG NGÀY",
-                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(23, 162, 184), // Màu xanh ngọc
-                Location = new Point(0, 30),
-                Width = 500,
-                Height = 50,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
+            // 1. Tạo Panel chuẩn DockStyle.Fill
+            pnlAttendance = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };
+            
+            // 2. Tiêu đề (Đã thu nhỏ Font xuống 18F để tránh tràn)
+            Label lblTitle = new Label { Text = "CHẤM CÔNG LÀM VIỆC", Font = new Font("Segoe UI", 18F, FontStyle.Bold), ForeColor = primaryBlue, Location = new Point(0, 30), Width = 500, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
 
-            // 3. Khung trắng chứa nội dung (Card)
-            Panel pnlCard = new Panel { Width = 400, Height = 450, BackColor = Color.White, Location = new Point(40, 90), BorderStyle = BorderStyle.FixedSingle };
+            // 3. ĐỒNG HỒ THỜI GIAN THỰC (Đã thu nhỏ Font xuống 32F và tăng Height)
+            lblClock = new Label { Text = "00:00:00", Font = new Font("Segoe UI", 32F, FontStyle.Bold), ForeColor = darkGray, Location = new Point(0, 70), Width = 500, Height = 80, TextAlign = ContentAlignment.MiddleCenter };
+            
+            timerClock = new System.Windows.Forms.Timer { Interval = 1000 };
+            timerClock.Tick += (s, e) => { lblClock.Text = DateTime.Now.ToString("HH:mm:ss"); };
+            timerClock.Start();
+
+            // 4. Khung trắng chứa nội dung (Card)
+            Panel pnlCard = new Panel { Width = 400, Height = 320, BackColor = Color.White, Location = new Point(50, 160), BorderStyle = BorderStyle.FixedSingle };
 
             // Trạng thái
             lblAttendanceStatus = new Label
@@ -49,35 +47,35 @@ namespace QuanLyNhanSu.DesktopClient
                 ForeColor = Color.Gray,
                 AutoSize = false,
                 Width = 400,
-                Height = 80,
+                Height = 60,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Location = new Point(0, 40)
+                Location = new Point(0, 20)
             };
 
-            // NÚT CHECK-IN (Xanh lá)
+            // NÚT CHECK-IN (Xanh lá - Font 13F)
             btnCheckIn = new Button
             {
-                Text = "📍 ĐIỂM DANH LÀM VIỆC",
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                BackColor = Color.FromArgb(40, 167, 69), 
+                Text = "📍 ĐIỂM DANH VÀO CA",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                BackColor = primaryGreen, 
                 ForeColor = Color.White,
-                Size = new Size(300, 60),
-                Location = new Point(50, 150),
+                Size = new Size(320, 60),
+                Location = new Point(40, 100),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             btnCheckIn.FlatAppearance.BorderSize = 0;
             btnCheckIn.Click += async (s, e) => await ThucHienChamCongAsync("check-in");
 
-            // NÚT CHECK-OUT (Đỏ)
+            // NÚT CHECK-OUT (Đỏ - Đổi tên và Font 13F)
             btnCheckOut = new Button
             {
-                Text = "🏃 XÁC NHẬN TAN LÀM",
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                BackColor = Color.FromArgb(220, 53, 69), 
+                Text = "🏃 ĐIỂM DANH TAN CA", // 👉 Đã sửa theo đúng ý bạn
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                BackColor = dangerRed, 
                 ForeColor = Color.White,
-                Size = new Size(300, 60),
-                Location = new Point(50, 240),
+                Size = new Size(320, 60),
+                Location = new Point(40, 180),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -86,24 +84,13 @@ namespace QuanLyNhanSu.DesktopClient
 
             pnlCard.Controls.AddRange(new Control[] { lblAttendanceStatus, btnCheckIn, btnCheckOut });
 
-            // 4. Nút Quay Lại (Quan trọng để không bị kẹt)
-            Button btnBackDash = new Button 
-            { 
-                Text = "QUAY LẠI BẢNG ĐIỀU KHIỂN", 
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold), 
-                ForeColor = Color.White, 
-                BackColor = Color.FromArgb(0, 102, 204), // Xanh dương
-                Location = new Point(40, 600), 
-                Width = 400, 
-                Height = 50, 
-                FlatStyle = FlatStyle.Flat, 
-                Cursor = Cursors.Hand 
-            };
-            btnBackDash.FlatAppearance.BorderSize = 0; 
+            // 5. Nút Quay Lại
+            Button btnBackDash = new Button { Text = "QUAY LẠI BẢNG ĐIỀU KHIỂN", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryBlue, Location = new Point(50, 600), Width = 400, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnBackDash.FlatAppearance.BorderSize = 0;
             btnBackDash.Click += (s, e) => { SwitchPanel(pnlDashboard); };
 
             // Gom tất cả vào Panel chính
-            pnlAttendance.Controls.AddRange(new Control[] { lblTitle, pnlCard, btnBackDash });
+            pnlAttendance.Controls.AddRange(new Control[] { lblTitle, lblClock, pnlCard, btnBackDash });
             this.Controls.Add(pnlAttendance);
         }
 
@@ -114,26 +101,20 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                // Tạm khóa nút để tránh người dùng spam click (bấm liên tục 2 lần)
+                // Khóa nút để tránh spam
                 btnCheckIn.Enabled = false;
                 btnCheckOut.Enabled = false;
                 lblAttendanceStatus.Text = "Đang kết nối đến Server...";
                 lblAttendanceStatus.ForeColor = Color.DarkOrange;
 
-              // 👉 THÊM 2 DÒNG NÀY ĐỂ VƯỢT QUA TƯỜNG LỬA SSL LOCALHOST
                 HttpClientHandler handler = new HttpClientHandler();
                 handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
 
-                // 👉 ĐƯA HANDLER VÀO HTTPCLIENT
                 using (var client = new HttpClient(handler))
                 {
-                    // LƯU Ý: Đảm bảo Port Server của bạn vẫn là 44387
                     client.BaseAddress = new Uri("https://localhost:44387/");
-                    
-                    // Gắn Thẻ ra vào (Token) để chứng minh thân phận
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
 
-                    // Gọi API (ABP tự động map CheckInAsync thành /api/app/attendance/check-in)
                     var response = await client.PostAsync($"/api/app/attendance/{actionEndpoint}", null);
                     var responseString = await response.Content.ReadAsStringAsync();
 
@@ -164,4 +145,4 @@ namespace QuanLyNhanSu.DesktopClient
             }
         }
     }
-}   
+}

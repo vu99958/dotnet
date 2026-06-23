@@ -12,12 +12,11 @@ namespace QuanLyNhanSu.DesktopClient
         private string myCurrentRole = "user";
         private string? currentEditUserId = null; 
 
-        // Các biến UI
+        // CÁC BIẾN UI CHUNG
         private Panel pnlDashboard = null!, pnlProfile = null!, pnlManageContent = null!, pnlAddEditEmployee = null!;
         private Button btnManageEmp = null!;
         private Button btnMenuAttendance = null!;
         private TextBox txtEmpUserName = null!, txtEmpEmail = null!, txtEmpPhone = null!, txtEmpPassword = null!;
-        // THÊM BIẾN NÀY CHO THANH TÌM KIẾM
         private TextBox txtSearchEmp = null!;
         private Label lblEmpPassword = null!, lblAddEditTitle = null!;
         private ComboBox cbEmpRole = null!;
@@ -46,8 +45,12 @@ namespace QuanLyNhanSu.DesktopClient
             this.Font = new Font("Segoe UI", 11F);
 
             this.FormClosed += (s, e) => Application.Exit();
+            
+            // Hàm vẽ Dashboard nằm trong file này
             VeGiaoDienDashboard();
+            // Hàm vẽ Chấm Công sẽ được gọi từ file FormDashboard.Attendance.cs
             VeGiaoDienChamCong();
+            
             this.Load += FormDashboard_Load; 
         }
 
@@ -77,44 +80,19 @@ namespace QuanLyNhanSu.DesktopClient
             lblTotalUser = new Label { Text = "-", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = Color.White, Location = new Point(10, 30), AutoSize = true };
             pnlStat3.Controls.Add(lblTotalUser);
 
-            // 1. Chức năng cho ô TỔNG SỐ (Hiển thị TẤT CẢ)
-            EventHandler clickTongSo = async (s, e) => { 
-                SwitchPanel(pnlManageContent); 
-                txtSearchEmp.Text = ""; // Xóa bộ lọc để hiện tất cả
-                await LoadEmployeeListAsync(); 
-            };
-            pnlStat1.Cursor = Cursors.Hand;
-            pnlStat1.Click += clickTongSo;
-            foreach (Control c in pnlStat1.Controls) { c.Cursor = Cursors.Hand; c.Click += clickTongSo; }
+            EventHandler clickTongSo = async (s, e) => { SwitchPanel(pnlManageContent); txtSearchEmp.Text = ""; await LoadEmployeeListAsync(); };
+            pnlStat1.Cursor = Cursors.Hand; pnlStat1.Click += clickTongSo; foreach (Control c in pnlStat1.Controls) { c.Cursor = Cursors.Hand; c.Click += clickTongSo; }
 
-            // 2. Chức năng cho ô QUẢN TRỊ (Tự động lọc Admin)
-            EventHandler clickQuanTri = async (s, e) => { 
-                SwitchPanel(pnlManageContent); 
-                await LoadEmployeeListAsync(); 
-                // Tự động điền "admin" vào thanh tìm kiếm để kích hoạt bộ lọc của bạn
-                txtSearchEmp.Text = "admin"; 
-            };
-            pnlStat2.Cursor = Cursors.Hand;
-            pnlStat2.Click += clickQuanTri;
-            foreach (Control c in pnlStat2.Controls) { c.Cursor = Cursors.Hand; c.Click += clickQuanTri; }
+            EventHandler clickQuanTri = async (s, e) => { SwitchPanel(pnlManageContent); await LoadEmployeeListAsync(); txtSearchEmp.Text = "admin"; };
+            pnlStat2.Cursor = Cursors.Hand; pnlStat2.Click += clickQuanTri; foreach (Control c in pnlStat2.Controls) { c.Cursor = Cursors.Hand; c.Click += clickQuanTri; }
 
-            // 3. Chức năng cho ô NHÂN VIÊN (Tự động lọc User)
-            EventHandler clickNhanVien = async (s, e) => { 
-                SwitchPanel(pnlManageContent); 
-                await LoadEmployeeListAsync(); 
-                // Tự động điền "user" vào thanh tìm kiếm
-                txtSearchEmp.Text = "user"; 
-            };
-            pnlStat3.Cursor = Cursors.Hand;
-            pnlStat3.Click += clickNhanVien;
-            foreach (Control c in pnlStat3.Controls) { c.Cursor = Cursors.Hand; c.Click += clickNhanVien; }
+            EventHandler clickNhanVien = async (s, e) => { SwitchPanel(pnlManageContent); await LoadEmployeeListAsync(); txtSearchEmp.Text = "user"; };
+            pnlStat3.Cursor = Cursors.Hand; pnlStat3.Click += clickNhanVien; foreach (Control c in pnlStat3.Controls) { c.Cursor = Cursors.Hand; c.Click += clickNhanVien; }
 
-            // Đã sửa: Bổ sung chữ "Button" vào đầu dòng
             Button btnViewProfile = new Button { Text = "👤 HỒ SƠ CỦA TÔI", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryGreen, Location = new Point(startX, 230), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnViewProfile.FlatAppearance.BorderSize = 0;
             btnViewProfile.Click += async (s, e) => { SwitchPanel(pnlProfile); await LoadMyProfileAsync(); };
 
-            // NÚT MỞ PANEL CHẤM CÔNG
             btnMenuAttendance = new Button { Text = "⏰ CHẤM CÔNG HÀNG NGÀY", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(23, 162, 184), Location = new Point(startX, 300), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnMenuAttendance.FlatAppearance.BorderSize = 0;
             btnMenuAttendance.Click += (s, e) => { SwitchPanel(pnlAttendance); };
@@ -153,11 +131,7 @@ namespace QuanLyNhanSu.DesktopClient
             pnlManageContent = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };
             Label lblManageTitle = new Label { Text = "DANH SÁCH NHÂN VIÊN", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = primaryOrange, Location = new Point(0, 30), Width = 500, Height = 50, TextAlign = ContentAlignment.MiddleCenter };
             
-            txtSearchEmp = new TextBox { 
-                Location = new Point(startX, 90), Width = width, 
-                Font = new Font("Segoe UI", 12F), 
-                PlaceholderText = "🔍 Nhập Tên, Email hoặc SĐT để tìm nhanh..." 
-            };
+            txtSearchEmp = new TextBox { Location = new Point(startX, 90), Width = width, Font = new Font("Segoe UI", 12F), PlaceholderText = "🔍 Nhập Tên, Email hoặc SĐT để tìm nhanh..." };
             txtSearchEmp.TextChanged += TxtSearchEmp_TextChanged;
 
             dgvEmployees = new DataGridView { Location = new Point(startX, 135), Size = new Size(width, 335), BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle, AllowUserToAddRows = false, ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, RowTemplate = { Height = 35 } };
@@ -200,8 +174,6 @@ namespace QuanLyNhanSu.DesktopClient
             btnCancelEdit.FlatAppearance.BorderSize = 0; btnCancelEdit.Click += (s, e) => { SwitchPanel(pnlManageContent); };
             pnlAddEditEmployee.Controls.AddRange(new Control[] { lblAddEditTitle, pnlFormEdit, btnSaveEmp, btnIssueKey, btnDeleteEmp, btnCancelEdit });
 
-            // Đã sửa: Xóa bỏ các dòng lặp dư thừa
-            this.Controls.Add(pnlAttendance); 
             this.Controls.Add(pnlAddEditEmployee); 
             this.Controls.Add(pnlManageContent); 
             this.Controls.Add(pnlProfile); 
@@ -227,14 +199,12 @@ namespace QuanLyNhanSu.DesktopClient
                 {
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
                     
-                    // 1. Kiểm tra quyền
                     HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/my-profile/my-profile");
                     if (response.IsSuccessStatusCode)
                     {
                         var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
                         myCurrentRole = data.GetProperty("roles").GetString()?.ToLower() ?? "user";
                         
-                        // Đã sửa: Gom cụm lệnh hiển thị vào chung một dấu ngoặc nhọn
                         if (myCurrentRole == "admin" || myCurrentRole == "superadmin") 
                         {
                             btnManageEmp.Visible = true;
@@ -244,7 +214,6 @@ namespace QuanLyNhanSu.DesktopClient
                         }  
                     }
 
-                    // 2. Load API Thống kê
                     HttpResponseMessage statsRes = await client.GetAsync("https://localhost:44387/api/app/employee/dashboard-stats");
                     if (statsRes.IsSuccessStatusCode)
                     {

@@ -20,6 +20,8 @@ namespace QuanLyNhanSu
 
         // Trạng thái: "Đúng giờ", "Đi trễ", "Vắng mặt"...
         public string Status { get; set; }
+        public int LateMinutes { get; set; }
+        public int EarlyLeaveMinutes { get; set; }
 
         // Hàm khởi tạo mặc định (bắt buộc phải có cho Entity Framework)
         protected AttendanceRecord() { }

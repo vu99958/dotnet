@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Threading;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -213,33 +214,46 @@ namespace QuanLyNhanSu.DesktopClient
                 catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
             }
         }
-    // ==========================================
-        // 👉 TÍNH NĂNG TÌM KIẾM NHÂN VIÊN (Lọc Real-time)
-        // ==========================================
-        private void TxtSearchEmp_TextChanged(object? sender, EventArgs e)
+        // 👉 TÍNH NĂNG TÌM KIẾM NHÂN VIÊN (Đã tối ưu chống giật lag)
+        
+        // 1. Khai báo biến kiểm soát việc gõ phím
+        private CancellationTokenSource _searchCts;
+
+        // 2. Hàm tìm kiếm mới có dùng async/await
+        private async void TxtSearchEmp_TextChanged(object? sender, EventArgs e)
         {
-            // Lấy từ khóa người dùng gõ, chuyển hết thành chữ thường để dễ so sánh
-            string keyword = txtSearchEmp.Text.ToLower().Trim();
+            // Hủy lệnh tìm kiếm cũ nếu người dùng đang gõ liên tục chưa xong
+            _searchCts?.Cancel();
+            _searchCts = new CancellationTokenSource();
+            var token = _searchCts.Token;
 
-            // Duyệt qua từng dòng trong bảng
-            foreach (DataGridViewRow row in dgvEmployees.Rows)
+            try
             {
-                if (row.IsNewRow) continue;
+                // KỸ THUẬT DEBOUNCE (Wrap): Chờ 500ms (nửa giây) sau khi ngừng gõ mới bắt đầu tìm
+                await Task.Delay(500, token);
 
-                // Lấy dữ liệu của 3 cột
-                string name = row.Cells["UserName"].Value?.ToString()?.ToLower() ?? "";
-                string email = row.Cells["Email"].Value?.ToString()?.ToLower() ?? "";
-                string phone = row.Cells["PhoneNumber"].Value?.ToString()?.ToLower() ?? "";
+                string keyword = txtSearchEmp.Text.ToLower().Trim();
 
-                // Nếu từ khóa xuất hiện ở 1 trong 3 cột thì cho hiện dòng đó lên, ngược lại thì ẩn đi
-                if (name.Contains(keyword) || email.Contains(keyword) || phone.Contains(keyword))
+                // KHÓA GIAO DIỆN: Tạm dừng vẽ DataGridView để chống chớp nháy và đơ máy
+                dgvEmployees.SuspendLayout();
+
+                foreach (DataGridViewRow row in dgvEmployees.Rows)
                 {
-                    row.Visible = true;
+                    if (row.IsNewRow) continue;
+
+                    string name = row.Cells["UserName"].Value?.ToString()?.ToLower() ?? "";
+                    string email = row.Cells["Email"].Value?.ToString()?.ToLower() ?? "";
+                    string phone = row.Cells["PhoneNumber"].Value?.ToString()?.ToLower() ?? "";
+
+                    row.Visible = name.Contains(keyword) || email.Contains(keyword) || phone.Contains(keyword);
                 }
-                else
-                {
-                    row.Visible = false;
-                }
+
+                // MỞ KHÓA GIAO DIỆN: Vẽ lại bảng sau khi đã lọc xong
+                dgvEmployees.ResumeLayout();
+            }
+            catch (TaskCanceledException)
+            {
+                // Task bị hủy do người dùng gõ phím mới -> Bỏ qua không báo lỗi
             }
         }
     }
