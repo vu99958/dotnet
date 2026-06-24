@@ -2,110 +2,107 @@ using System;
 using System.Drawing;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace QuanLyNhanSu.DesktopClient
 {
-    // Bắt buộc dùng partial class để nối với file FormDashboard.cs
     public partial class FormDashboard
     {
-        // CÁC BIẾN CHỈ DÀNH CHO MODULE CHẤM CÔNG SẼ ĐƯỢC ĐẶT Ở ĐÂY
         private Panel pnlAttendance = null!;
-        private Label lblClock = null!, lblAttendanceStatus = null!;
-        private Button btnCheckIn = null!, btnCheckOut = null!;
+        private Label lblClock = null!;
         private System.Windows.Forms.Timer timerClock = null!;
+        
+        // CÁC BIẾN MỚI CHO GIAO DIỆN QUẢN LÝ HR
+        private DataGridView dgvAttendance = null!;
+        private DateTimePicker dtpFilterDate = null!;
+        private Button btnRefreshData = null!;
 
-        private void VeGiaoDienChamCong()
+      private void VeGiaoDienChamCong()
         {
-            Color primaryBlue = Color.FromArgb(0, 102, 204), primaryGreen = Color.FromArgb(32, 161, 68);
-            Color dangerRed = Color.FromArgb(220, 53, 69);
-            Color lightGray = Color.FromArgb(245, 247, 250), darkGray = Color.FromArgb(80, 80, 80);
-            int startX = 50, width = 400; // Tinh chỉnh lại tọa độ để nằm giữa đẹp hơn
+            Color primaryBlue = Color.FromArgb(0, 102, 204);
+            Color lightGray = Color.FromArgb(245, 247, 250);
+            Color darkGray = Color.FromArgb(80, 80, 80);
 
-            // 1. Tạo Panel chuẩn DockStyle.Fill
+            // 1. Panel chính
             pnlAttendance = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };
-            
-            // 2. Tiêu đề (Đã thu nhỏ Font xuống 18F để tránh tràn)
-            Label lblTitle = new Label { Text = "CHẤM CÔNG LÀM VIỆC", Font = new Font("Segoe UI", 18F, FontStyle.Bold), ForeColor = primaryBlue, Location = new Point(0, 30), Width = 500, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
 
-            // 3. ĐỒNG HỒ THỜI GIAN THỰC (Đã thu nhỏ Font xuống 32F và tăng Height)
-            lblClock = new Label { Text = "00:00:00", Font = new Font("Segoe UI", 32F, FontStyle.Bold), ForeColor = darkGray, Location = new Point(0, 70), Width = 500, Height = 80, TextAlign = ContentAlignment.MiddleCenter };
-            
+            // 2. Tiêu đề và Đồng hồ (Tự động canh giữa)
+            Label lblTitle = new Label { Text = "BẢNG KÊ CHẤM CÔNG NHÂN SỰ", Font = new Font("Segoe UI", 16F, FontStyle.Bold), ForeColor = primaryBlue, Location = new Point(0, 20), Width = pnlAttendance.Width, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, TextAlign = ContentAlignment.MiddleCenter };
+            lblClock = new Label { Text = "00:00:00", Font = new Font("Segoe UI", 20F, FontStyle.Bold), ForeColor = darkGray, Location = new Point(0, 60), Width = pnlAttendance.Width, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, TextAlign = ContentAlignment.MiddleCenter };
+
             timerClock = new System.Windows.Forms.Timer { Interval = 1000 };
-            timerClock.Tick += (s, e) => { lblClock.Text = DateTime.Now.ToString("HH:mm:ss"); };
+            timerClock.Tick += (s, e) => { lblClock.Text = DateTime.Now.ToString("dd/MM/yyyy - HH:mm:ss"); };
             timerClock.Start();
 
-            // 4. Khung trắng chứa nội dung (Card)
-            Panel pnlCard = new Panel { Width = 400, Height = 320, BackColor = Color.White, Location = new Point(50, 160), BorderStyle = BorderStyle.FixedSingle };
+            // 3. Thanh công cụ lọc dữ liệu (Chỉnh lại tọa độ chống đè nhau)
+            Panel pnlToolbar = new Panel { Location = new Point(20, 110), Width = pnlAttendance.Width - 40, Height = 40, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+            
+            Label lblFilter = new Label { Text = "Chọn ngày xem:", Location = new Point(0, 8), AutoSize = true, Font = new Font("Segoe UI", 10F) };
+            dtpFilterDate = new DateTimePicker { Location = new Point(110, 5), Format = DateTimePickerFormat.Short, Font = new Font("Segoe UI", 10F), Width = 120 };
+            
+            btnRefreshData = new Button { Text = "🔄 Tải Dữ Liệu", Location = new Point(240, 4), Width = 120, Height = 30, BackColor = primaryBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnRefreshData.FlatAppearance.BorderSize = 0;
+            btnRefreshData.Click += async (s, e) => await LoadAttendanceDataAsync(dtpFilterDate.Value);
 
-            // Trạng thái
-            lblAttendanceStatus = new Label
+            pnlToolbar.Controls.AddRange(new Control[] { lblFilter, dtpFilterDate, btnRefreshData });
+
+            // 4. BẢNG DỮ LIỆU CHẤM CÔNG (Tự co giãn 4 phía)
+            dgvAttendance = new DataGridView
             {
-                Text = "Trạng thái hôm nay:\nChưa điểm danh",
-                Font = new Font("Segoe UI", 12F, FontStyle.Italic),
-                ForeColor = Color.Gray,
-                AutoSize = false,
-                Width = 400,
-                Height = 60,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Location = new Point(0, 20)
+                Location = new Point(20, 160),
+                Width = pnlAttendance.Width - 40,
+                Height = pnlAttendance.Height - 240,
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AllowUserToAddRows = false,
+                ReadOnly = true,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White,
+                RowHeadersVisible = false,
+                Font = new Font("Segoe UI", 10F)
             };
 
-            // NÚT CHECK-IN (Xanh lá - Font 13F)
-            btnCheckIn = new Button
-            {
-                Text = "📍 ĐIỂM DANH VÀO CA",
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
-                BackColor = primaryGreen, 
-                ForeColor = Color.White,
-                Size = new Size(320, 60),
-                Location = new Point(40, 100),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            btnCheckIn.FlatAppearance.BorderSize = 0;
-            btnCheckIn.Click += async (s, e) => await ThucHienChamCongAsync("check-in");
+            dgvAttendance.Columns.Add("EmpCode", "Mã NV");
+            dgvAttendance.Columns.Add("FullName", "Họ Tên");
+            dgvAttendance.Columns.Add("CheckIn", "Giờ Vào");
+            dgvAttendance.Columns.Add("CheckOut", "Giờ Ra");
+            dgvAttendance.Columns.Add("Late", "Đi Trễ (Phút)");
+            dgvAttendance.Columns.Add("Early", "Về Sớm (Phút)");
 
-            // NÚT CHECK-OUT (Đỏ - Đổi tên và Font 13F)
-            btnCheckOut = new Button
-            {
-                Text = "🏃 ĐIỂM DANH TAN CA", // 👉 Đã sửa theo đúng ý bạn
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
-                BackColor = dangerRed, 
-                ForeColor = Color.White,
-                Size = new Size(320, 60),
-                Location = new Point(40, 180),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            btnCheckOut.FlatAppearance.BorderSize = 0;
-            btnCheckOut.Click += async (s, e) => await ThucHienChamCongAsync("check-out");
+            dgvAttendance.CellFormatting += DgvAttendance_CellFormatting;
 
-            pnlCard.Controls.AddRange(new Control[] { lblAttendanceStatus, btnCheckIn, btnCheckOut });
-
-            // 5. Nút Quay Lại
-            Button btnBackDash = new Button { Text = "QUAY LẠI BẢNG ĐIỀU KHIỂN", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryBlue, Location = new Point(50, 600), Width = 400, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            // 5. Nút Quay Lại (Ghim xuống đáy)
+            Button btnBackDash = new Button { Text = "QUAY LẠI BẢNG ĐIỀU KHIỂN", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = darkGray, Location = new Point(20, pnlAttendance.Height - 60), Width = 250, Height = 40, Anchor = AnchorStyles.Bottom | AnchorStyles.Left, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnBackDash.FlatAppearance.BorderSize = 0;
             btnBackDash.Click += (s, e) => { SwitchPanel(pnlDashboard); };
 
-            // Gom tất cả vào Panel chính
-            pnlAttendance.Controls.AddRange(new Control[] { lblTitle, lblClock, pnlCard, btnBackDash });
+            pnlAttendance.Controls.AddRange(new Control[] { lblTitle, lblClock, pnlToolbar, dgvAttendance, btnBackDash });
             this.Controls.Add(pnlAttendance);
         }
-
+        private void DgvAttendance_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex >= 0 && (e.ColumnIndex == 4 || e.ColumnIndex == 5)) // Áp dụng cho cột Đi Trễ (4) và Về Sớm (5)
+            {
+                // Nếu giá trị phút > 0 thì đổi màu chữ thành Đỏ và in Đậm
+                if (e.Value != null && int.TryParse(e.Value.ToString(), out int minutes) && minutes > 0)
+                {
+                    e.CellStyle.ForeColor = Color.Red;
+                    e.CellStyle.Font = new Font(e.CellStyle.Font ?? new Font("Segoe UI", 10F), FontStyle.Bold);
+                }
+            }
+        }
         // ==========================================
-        // HÀM KẾT NỐI API XUỐNG BACKEND
+        // HÀM KẾT NỐI API LẤY BÁO CÁO (GET)
         // ==========================================
-        private async Task ThucHienChamCongAsync(string actionEndpoint)
+        private async Task LoadAttendanceDataAsync(DateTime targetDate)
         {
             try
             {
-                // Khóa nút để tránh spam
-                btnCheckIn.Enabled = false;
-                btnCheckOut.Enabled = false;
-                lblAttendanceStatus.Text = "Đang kết nối đến Server...";
-                lblAttendanceStatus.ForeColor = Color.DarkOrange;
+                btnRefreshData.Text = "Đang tải...";
+                btnRefreshData.Enabled = false;
+                dgvAttendance.Rows.Clear();
 
                 HttpClientHandler handler = new HttpClientHandler();
                 handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
@@ -115,33 +112,42 @@ namespace QuanLyNhanSu.DesktopClient
                     client.BaseAddress = new Uri("https://localhost:44387/");
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
 
-                    var response = await client.PostAsync($"/api/app/attendance/{actionEndpoint}", null);
-                    var responseString = await response.Content.ReadAsStringAsync();
-
+                    // Gọi API lấy danh sách theo ngày (Cần viết thêm API này ở Backend)
+                    string formattedDate = targetDate.ToString("yyyy-MM-dd");
+                    var response = await client.GetAsync($"/api/app/attendance/daily-report?date={formattedDate}");
+                    
                     if (response.IsSuccessStatusCode)
                     {
-                        MessageBox.Show("Thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        lblAttendanceStatus.Text = $"Cập nhật mới nhất ({DateTime.Now:HH:mm}):\n" + responseString;
-                        lblAttendanceStatus.ForeColor = Color.FromArgb(32, 161, 68); // Xanh lá
+                        var jsonString = await response.Content.ReadAsStringAsync();
+                        using (JsonDocument doc = JsonDocument.Parse(jsonString))
+                        {
+                            foreach (JsonElement row in doc.RootElement.EnumerateArray())
+                            {
+                                dgvAttendance.Rows.Add(
+                                    row.GetProperty("employeeCode").GetString() ?? "",
+                                    row.GetProperty("employeeName").GetString() ?? "Không rõ",
+                                    row.GetProperty("checkInTime").GetString() ?? "--:--",
+                                    row.GetProperty("checkOutTime").GetString() ?? "--:--",
+                                    row.GetProperty("lateMinutes").GetInt32().ToString(),
+                                    row.GetProperty("earlyLeaveMinutes").GetInt32().ToString()
+                                );
+                            }
+                        }
                     }
                     else
                     {
-                        MessageBox.Show("Từ chối: " + responseString, "Cảnh báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        lblAttendanceStatus.Text = "Lỗi: " + responseString;
-                        lblAttendanceStatus.ForeColor = Color.FromArgb(220, 53, 69); // Đỏ
+                        MessageBox.Show("Lỗi lấy dữ liệu: " + response.StatusCode, "Lỗi Server", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Không thể kết nối đến Server: " + ex.Message, "Lỗi Mạng", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                lblAttendanceStatus.Text = "Lỗi kết nối Server!";
+                MessageBox.Show("Mất kết nối Server: " + ex.Message, "Lỗi Mạng", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                // Mở khóa lại nút bấm
-                btnCheckIn.Enabled = true;
-                btnCheckOut.Enabled = true;
+                btnRefreshData.Text = "🔄 Tải Dữ Liệu";
+                btnRefreshData.Enabled = true;
             }
         }
     }
