@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using QuanLyNhanSu.Domain;
 using Volo.Abp.AuditLogging.EntityFrameworkCore;
 using Volo.Abp.BackgroundJobs.EntityFrameworkCore;
@@ -56,6 +56,7 @@ public class QuanLyNhanSuDbContext :
     // Application Entities
     public DbSet<UserKey> UserKeys { get; set; }
     public DbSet<AttendanceRecord> AttendanceRecords { get; set; } //đại diện cho bảng chấm công
+    public DbSet<LeaveRequest> LeaveRequests { get; set; }
 
     #endregion
 
@@ -74,6 +75,12 @@ public class QuanLyNhanSuDbContext :
         {
             b.ToTable("AppAttendanceRecords"); // Tên bảng sẽ tạo trong SQL Server
             b.ConfigureByConvention(); // Tự động cấu hình các cột chuẩn của ABP
+        });
+
+        builder.Entity<LeaveRequest>(b =>
+        {
+            b.ToTable("AppLeaveRequests");
+            b.ConfigureByConvention();
         });
 
         builder.ConfigurePermissionManagement();

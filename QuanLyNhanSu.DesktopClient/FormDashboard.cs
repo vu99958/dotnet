@@ -101,11 +101,15 @@ namespace QuanLyNhanSu.DesktopClient
             btnManageEmp.FlatAppearance.BorderSize = 0; btnManageEmp.Visible = false; 
             btnManageEmp.Click += async (s, e) => { SwitchPanel(pnlManageContent); await LoadEmployeeListAsync(); };
 
+            Button btnLeaveManagement = new Button { Text = "📝 QUẢN LÝ NGHỈ PHÉP", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.MediumPurple, Location = new Point(startX, 440), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnLeaveManagement.FlatAppearance.BorderSize = 0;
+            btnLeaveManagement.Click += (s, e) => { FormLeaveRequest frm = new FormLeaveRequest(userToken); frm.ShowDialog(); };
+
             Button btnLogoutDash = new Button { Text = "ĐĂNG XUẤT", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Gray, Location = new Point(startX, 530), Width = width, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnLogoutDash.FlatAppearance.BorderSize = 0;
             btnLogoutDash.Click += (s, e) => { Application.Restart(); };
 
-            pnlDashboard.Controls.AddRange(new Control[] { lblDashTitle, pnlStat1, pnlStat2, pnlStat3, btnViewProfile, btnMenuAttendance, btnManageEmp, btnLogoutDash });
+            pnlDashboard.Controls.AddRange(new Control[] { lblDashTitle, pnlStat1, pnlStat2, pnlStat3, btnViewProfile, btnMenuAttendance, btnManageEmp, btnLeaveManagement, btnLogoutDash });
 
             // 2. PROFILE CARD
             pnlProfile = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };

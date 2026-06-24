@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Threading;
-
 namespace QuanLyNhanSu.DesktopClient
 {
     public partial class FormDashboard
