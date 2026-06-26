@@ -57,6 +57,9 @@ public class QuanLyNhanSuDbContext :
     public DbSet<UserKey> UserKeys { get; set; }
     public DbSet<AttendanceRecord> AttendanceRecords { get; set; } //đại diện cho bảng chấm công
     public DbSet<LeaveRequest> LeaveRequests { get; set; }
+    public DbSet<SalaryProfile> SalaryProfiles { get; set; }
+    public DbSet<Payslip> Payslips { get; set; }
+    public DbSet<PayslipComplaint> PayslipComplaints { get; set; }
 
     #endregion
 
@@ -80,6 +83,24 @@ public class QuanLyNhanSuDbContext :
         builder.Entity<LeaveRequest>(b =>
         {
             b.ToTable("AppLeaveRequests");
+            b.ConfigureByConvention();
+        });
+
+        builder.Entity<SalaryProfile>(b =>
+        {
+            b.ToTable("AppSalaryProfiles");
+            b.ConfigureByConvention();
+        });
+
+        builder.Entity<Payslip>(b =>
+        {
+            b.ToTable("AppPayslips");
+            b.ConfigureByConvention();
+        });
+
+        builder.Entity<PayslipComplaint>(b =>
+        {
+            b.ToTable("AppPayslipComplaints");
             b.ConfigureByConvention();
         });
 

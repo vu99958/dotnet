@@ -16,6 +16,7 @@ namespace QuanLyNhanSu.DesktopClient
         private Panel pnlDashboard = null!, pnlProfile = null!, pnlManageContent = null!, pnlAddEditEmployee = null!;
         private Button btnManageEmp = null!;
         private Button btnMenuAttendance = null!;
+        private Button btnPayroll = null!;
         private TextBox txtEmpUserName = null!, txtEmpEmail = null!, txtEmpPhone = null!, txtEmpPassword = null!;
         private TextBox txtSearchEmp = null!;
         private Label lblEmpPassword = null!, lblAddEditTitle = null!;
@@ -105,11 +106,15 @@ namespace QuanLyNhanSu.DesktopClient
             btnLeaveManagement.FlatAppearance.BorderSize = 0;
             btnLeaveManagement.Click += (s, e) => { FormLeaveRequest frm = new FormLeaveRequest(userToken); frm.ShowDialog(); };
 
-            Button btnLogoutDash = new Button { Text = "ĐĂNG XUẤT", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Gray, Location = new Point(startX, 530), Width = width, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnPayroll = new Button { Text = "💰 TÍNH LƯƠNG", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.DarkMagenta, Location = new Point(startX, 510), Width = width, Height = 60, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnPayroll.FlatAppearance.BorderSize = 0;
+            btnPayroll.Click += (s, e) => { FormPayroll frm = new FormPayroll(userToken, myCurrentRole); frm.ShowDialog(); };
+
+            Button btnLogoutDash = new Button { Text = "ĐĂNG XUẤT", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Gray, Location = new Point(startX, 600), Width = width, Height = 50, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnLogoutDash.FlatAppearance.BorderSize = 0;
             btnLogoutDash.Click += (s, e) => { Application.Restart(); };
 
-            pnlDashboard.Controls.AddRange(new Control[] { lblDashTitle, pnlStat1, pnlStat2, pnlStat3, btnViewProfile, btnMenuAttendance, btnManageEmp, btnLeaveManagement, btnLogoutDash });
+            pnlDashboard.Controls.AddRange(new Control[] { lblDashTitle, pnlStat1, pnlStat2, pnlStat3, btnViewProfile, btnMenuAttendance, btnManageEmp, btnLeaveManagement, btnPayroll, btnLogoutDash });
 
             // 2. PROFILE CARD
             pnlProfile = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false };
@@ -216,6 +221,10 @@ namespace QuanLyNhanSu.DesktopClient
                             pnlStat2.Visible = true;
                             pnlStat3.Visible = true;
                         }  
+                        else
+                        {
+                            btnPayroll.Text = "💰 PHIẾU LƯƠNG";
+                        }
                     }
 
                     HttpResponseMessage statsRes = await client.GetAsync("https://localhost:44387/api/app/employee/dashboard-stats");

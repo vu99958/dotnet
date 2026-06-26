@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using QuanLyNhanSu.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore;
@@ -12,9 +13,11 @@ using Volo.Abp.EntityFrameworkCore;
 namespace QuanLyNhanSu.Migrations
 {
     [DbContext(typeof(QuanLyNhanSuDbContext))]
-    partial class QuanLyNhanSuDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260626061245_AddPositionToSalaryProfile")]
+    partial class AddPositionToSalaryProfile
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -176,12 +179,6 @@ namespace QuanLyNhanSu.Migrations
                     b.Property<decimal>("NetSalary")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("OvertimeDays")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("OvertimePay")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<int>("StandardWorkDays")
                         .HasColumnType("int");
 
@@ -197,70 +194,6 @@ namespace QuanLyNhanSu.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AppPayslips", (string)null);
-                });
-
-            modelBuilder.Entity("QuanLyNhanSu.PayslipComplaint", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AdminReply")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreationTime")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("CreationTime");
-
-                    b.Property<Guid?>("CreatorId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("CreatorId");
-
-                    b.Property<Guid?>("DeleterId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("DeleterId");
-
-                    b.Property<DateTime?>("DeletionTime")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("DeletionTime");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("IsDeleted");
-
-                    b.Property<DateTime?>("LastModificationTime")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("LastModificationTime");
-
-                    b.Property<Guid?>("LastModifierId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("LastModifierId");
-
-                    b.Property<int>("Month")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("PayslipId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Year")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AppPayslipComplaints", (string)null);
                 });
 
             modelBuilder.Entity("QuanLyNhanSu.SalaryProfile", b =>
