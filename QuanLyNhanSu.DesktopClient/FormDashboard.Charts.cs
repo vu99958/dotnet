@@ -30,8 +30,6 @@ namespace QuanLyNhanSu.DesktopClient
             // ── PANEL CHỨA 2 BIỂU ĐỒ ───────────────────
             pnlCharts = new Panel
             {
-                Location = new Point(20, 210),
-                Size = new Size(440, 410),
                 BackColor = bgPanel,
                 Visible = false  // Ẩn mặc định, Admin mới hiện
             };
@@ -41,8 +39,6 @@ namespace QuanLyNhanSu.DesktopClient
             // ══════════════════════════════════════════════
             chartAttendance = new Chart
             {
-                Location = new Point(5, 5),
-                Size = new Size(210, 195),
                 BackColor = Color.White,
                 BorderlineDashStyle = ChartDashStyle.Solid,
                 BorderlineColor = Color.FromArgb(230, 232, 236),
@@ -102,8 +98,6 @@ namespace QuanLyNhanSu.DesktopClient
             // ══════════════════════════════════════════════
             chartSalary = new Chart
             {
-                Location = new Point(5, 205),
-                Size = new Size(430, 200),
                 BackColor = Color.White,
                 BorderlineDashStyle = ChartDashStyle.Solid,
                 BorderlineColor = Color.FromArgb(230, 232, 236),
