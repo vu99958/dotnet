@@ -18,6 +18,8 @@ namespace QuanLyNhanSu.DesktopClient
         private DataGridView dgvAttendance = null!;
         private DateTimePicker dtpFilterDate = null!;
         private Button btnRefreshData = null!;
+        private Button btnCheckIn = null!;
+        private Button btnCheckOut = null!;
 
       private void VeGiaoDienChamCong()
         {
@@ -46,7 +48,15 @@ namespace QuanLyNhanSu.DesktopClient
             btnRefreshData.FlatAppearance.BorderSize = 0;
             btnRefreshData.Click += async (s, e) => await LoadAttendanceDataAsync(dtpFilterDate.Value);
 
-            pnlToolbar.Controls.AddRange(new Control[] { lblFilter, dtpFilterDate, btnRefreshData });
+            btnCheckIn = new Button { Text = "🌞 CHECK-IN", Location = new Point(370, 4), Width = 120, Height = 30, BackColor = Color.FromArgb(32, 161, 68), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnCheckIn.FlatAppearance.BorderSize = 0;
+            btnCheckIn.Click += async (s, e) => await PerformCheckInOutAsync("check-in");
+
+            btnCheckOut = new Button { Text = "🌙 CHECK-OUT", Location = new Point(500, 4), Width = 120, Height = 30, BackColor = Color.FromArgb(255, 140, 0), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnCheckOut.FlatAppearance.BorderSize = 0;
+            btnCheckOut.Click += async (s, e) => await PerformCheckInOutAsync("check-out");
+
+            pnlToolbar.Controls.AddRange(new Control[] { lblFilter, dtpFilterDate, btnRefreshData, btnCheckIn, btnCheckOut });
 
             // 4. BẢNG DỮ LIỆU CHẤM CÔNG (Tự co giãn 4 phía)
             dgvAttendance = new DataGridView
@@ -148,6 +158,46 @@ namespace QuanLyNhanSu.DesktopClient
             {
                 btnRefreshData.Text = "🔄 Tải Dữ Liệu";
                 btnRefreshData.Enabled = true;
+            }
+        }
+
+        private async Task PerformCheckInOutAsync(string action)
+        {
+            try
+            {
+                HttpClientHandler handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+
+                using (var client = new HttpClient(handler))
+                {
+                    client.BaseAddress = new Uri("https://localhost:44387/");
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+                    // Call the corresponding API
+                    var response = await client.PostAsync($"/api/app/attendance/{action}", null);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var resultString = await response.Content.ReadAsStringAsync();
+                        MessageBox.Show("Thành công: " + resultString, "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        // Tải lại dữ liệu ngày hôm nay cho bảng Grid
+                        dtpFilterDate.Value = DateTime.Now.Date;
+                        await LoadAttendanceDataAsync(DateTime.Now.Date);
+
+                        // Tải lại dữ liệu cho Biểu đồ ngoài Dashboard
+                        await LoadDashboardChartsAsync();
+                    }
+                    else
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        MessageBox.Show($"Thất bại: Mặc dù đã click nhưng không thành công.\n(Status {response.StatusCode})\n{errorContent}", "Lỗi Chấm Công", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi kết nối Server: " + ex.Message, "Lỗi Mạng", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

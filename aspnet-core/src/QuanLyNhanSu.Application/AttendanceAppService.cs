@@ -7,6 +7,7 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity; 
 using Microsoft.AspNetCore.Authorization; 
+using QuanLyNhanSu.Domain;
 
 namespace QuanLyNhanSu
 {
@@ -14,13 +15,16 @@ namespace QuanLyNhanSu
     {
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;
         private readonly IRepository<IdentityUser, Guid> _userRepository;
+        private readonly IRepository<UserKey, Guid> _userKeyRepository;
 
         public AttendanceAppService(
             IRepository<AttendanceRecord, Guid> attendanceRepository,
-            IRepository<IdentityUser, Guid> userRepository) 
+            IRepository<IdentityUser, Guid> userRepository,
+            IRepository<UserKey, Guid> userKeyRepository) 
         {
             _attendanceRepository = attendanceRepository;
             _userRepository = userRepository;
+            _userKeyRepository = userKeyRepository;
         }
 
         // ==========================================
@@ -169,20 +173,29 @@ namespace QuanLyNhanSu
         // ==========================================
         // 4. API BÁO CÁO CHẤM CÔNG (ĐÃ PHÂN QUYỀN)
         // ==========================================
-        public async Task<List<AttendanceReportDto>> GetDailyReportAsync(DateTime date)
+        public async Task<List<AttendanceReportDto>> GetDailyReportAsync(string date)
         {
             // Kiểm tra bảo mật cơ bản
             var currentUserId = CurrentUser.Id;
             if (currentUserId == null)
                 throw new UserFriendlyException("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
 
-            var startOfDay = date.Date;
+            DateTime parsedDate = DateTime.Now.Date;
+            if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var parsed))
+            {
+                parsedDate = parsed.Date;
+            }
+
+            var startOfDay = parsedDate.Date;
             var endOfDay = startOfDay.AddDays(1).AddTicks(-1);
 
             List<AttendanceRecord> records;
 
             // 👉 BẢO MẬT: Kiểm tra quyền để quyết định dữ liệu trả về
-            if (CurrentUser.Roles.Contains("admin") || CurrentUser.Roles.Contains("SuperAdmin"))
+            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId);
+            bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
+            
+            if (isAdmin)
             {
                 // Quản lý được xem toàn bộ bảng chấm công của công ty
                 records = await _attendanceRepository.GetListAsync(

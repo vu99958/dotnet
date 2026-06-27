@@ -5,24 +5,28 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
+using QuanLyNhanSu.Domain;
 
 namespace QuanLyNhanSu
 {
     /// <summary>
     /// Service thống kê cho Dashboard — chỉ Admin/SuperAdmin được phép gọi.
     /// </summary>
-    [Authorize(Roles = "admin,SuperAdmin")]
+    [Authorize]
     public class DashboardAppService : QuanLyNhanSuAppService, IDashboardAppService
     {
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;
         private readonly IRepository<Payslip, Guid> _payslipRepository;
+        private readonly IRepository<UserKey, Guid> _userKeyRepository;
 
         public DashboardAppService(
             IRepository<AttendanceRecord, Guid> attendanceRepository,
-            IRepository<Payslip, Guid> payslipRepository)
+            IRepository<Payslip, Guid> payslipRepository,
+            IRepository<UserKey, Guid> userKeyRepository)
         {
             _attendanceRepository = attendanceRepository;
             _payslipRepository = payslipRepository;
+            _userKeyRepository = userKeyRepository;
         }
 
         /// <summary>
@@ -32,6 +36,13 @@ namespace QuanLyNhanSu
         /// </summary>
         public async Task<TodayAttendanceStatsDto> GetTodayAttendanceStatsAsync()
         {
+            var userId = CurrentUser.Id;
+            if (userId == null) throw new UnauthorizedAccessException("Chưa đăng nhập");
+
+            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == userId);
+            if (userKey == null || (userKey.Role.ToLower() != "admin" && userKey.Role.ToLower() != "superadmin"))
+                throw new UnauthorizedAccessException("Không có quyền truy cập");
+
             var today = DateTime.Now.Date;
 
             var todayRecords = await _attendanceRepository.GetListAsync(
@@ -53,6 +64,13 @@ namespace QuanLyNhanSu
         /// </summary>
         public async Task<List<MonthlySalaryStatsDto>> GetMonthlySalaryStatsAsync()
         {
+            var userId = CurrentUser.Id;
+            if (userId == null) throw new UnauthorizedAccessException("Chưa đăng nhập");
+
+            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == userId);
+            if (userKey == null || (userKey.Role.ToLower() != "admin" && userKey.Role.ToLower() != "superadmin"))
+                throw new UnauthorizedAccessException("Không có quyền truy cập");
+
             int currentYear = DateTime.Now.Year;
 
             var yearPayslips = await _payslipRepository.GetListAsync(

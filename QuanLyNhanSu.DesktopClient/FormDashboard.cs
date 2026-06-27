@@ -105,7 +105,7 @@ namespace QuanLyNhanSu.DesktopClient
             btnViewProfile.Click += async (s, e) => { SwitchPanel(pnlProfile); await LoadMyProfileAsync(); };
 
             btnMenuAttendance = new Button { Text = "⏰ Chấm công" };
-            btnMenuAttendance.Click += (s, e) => { SwitchPanel(pnlAttendance); };
+            btnMenuAttendance.Click += async (s, e) => { SwitchPanel(pnlAttendance); await LoadAttendanceDataAsync(DateTime.Now.Date); };
 
             btnManageEmp = new Button { Text = "👥 Quản lý nhân sự", Visible = false };
             btnManageEmp.Click += async (s, e) => { SwitchPanel(pnlManageContent); await LoadEmployeeListAsync(); };

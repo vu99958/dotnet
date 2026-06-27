@@ -17,6 +17,6 @@ namespace QuanLyNhanSu
         // 👉 3. API ĐỒNG BỘ DỮ LIỆU TỪ MÁY CHẤM CÔNG (BẮT BUỘC PHẢI CÓ DÒNG NÀY)
         Task<int> SyncBulkDataAsync(List<SyncAttendanceDto> inputList);
         // 👉 THÊM DÒNG NÀY: API trả về báo cáo chấm công cho giao diện HR
-        Task<List<AttendanceReportDto>> GetDailyReportAsync(DateTime date);
+        Task<List<AttendanceReportDto>> GetDailyReportAsync(string date);
     }
 }

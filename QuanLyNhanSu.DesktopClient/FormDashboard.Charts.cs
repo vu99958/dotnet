@@ -192,49 +192,54 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                var response = await client.GetAsync(
-                    "api/app/dashboard/today-attendance-stats");
+                var response = await client.GetAsync("api/app/dashboard/today-attendance-stats");
 
-                if (!response.IsSuccessStatusCode) return;
-
-                var json = await response.Content.ReadAsStringAsync();
-                var data = JsonSerializer.Deserialize<JsonElement>(json);
-
-                int onTime = data.GetProperty("onTimeCount").GetInt32();
-                int lateOrEarly = data.GetProperty("lateOrEarlyCount").GetInt32();
-
-                var series = chartAttendance.Series["Attendance"];
-                series.Points.Clear();
-
-                if (onTime == 0 && lateOrEarly == 0)
+                if (!response.IsSuccessStatusCode) 
                 {
-                    // Chưa có dữ liệu chấm công
-                    series.Points.AddXY("Chưa có dữ liệu", 1);
-                    series.Points[0].Color = Color.FromArgb(200, 200, 205);
-                    series.Points[0].LegendText = "Chưa có dữ liệu";
-                    series.Points[0].Label = "0";
+                    MessageBox.Show($"Pie Chart API Failed: {response.StatusCode}\n{await response.Content.ReadAsStringAsync()}", "Lỗi API");
                     return;
                 }
 
-                // Đúng giờ — Xanh lá tươi
-                var ptOnTime = series.Points[series.Points.AddXY("Đúng giờ", onTime)];
-                ptOnTime.Color = Color.FromArgb(46, 204, 113);
-                ptOnTime.BackSecondaryColor = Color.FromArgb(39, 174, 96);
-                ptOnTime.BackGradientStyle = GradientStyle.DiagonalLeft;
-                ptOnTime.LegendText = $"Đúng giờ ({onTime})";
-                ptOnTime.Label = onTime.ToString();
+                var json = await response.Content.ReadAsStringAsync();
+                using (JsonDocument doc = JsonDocument.Parse(json))
+                {
+                    var data = doc.RootElement;
+                    int onTime = data.GetProperty("onTimeCount").GetInt32();
+                    int lateOrEarly = data.GetProperty("lateOrEarlyCount").GetInt32();
 
-                // Đi trễ / Về sớm — Cam đỏ
-                var ptLate = series.Points[series.Points.AddXY("Đi trễ / Về sớm", lateOrEarly)];
-                ptLate.Color = Color.FromArgb(231, 76, 60);
-                ptLate.BackSecondaryColor = Color.FromArgb(192, 57, 43);
-                ptLate.BackGradientStyle = GradientStyle.DiagonalLeft;
-                ptLate.LegendText = $"Trễ / Sớm ({lateOrEarly})";
-                ptLate.Label = lateOrEarly.ToString();
+                    var series = chartAttendance.Series["Attendance"];
+                    series.Points.Clear();
+
+                    if (onTime == 0 && lateOrEarly == 0)
+                    {
+                        // Chưa có dữ liệu chấm công
+                        series.Points.AddXY("Chưa có dữ liệu", 1);
+                        series.Points[0].Color = Color.FromArgb(200, 200, 205);
+                        series.Points[0].LegendText = "Chưa có dữ liệu";
+                        series.Points[0].Label = "0";
+                        return;
+                    }
+
+                    // Đúng giờ — Xanh lá tươi
+                    var ptOnTime = series.Points[series.Points.AddXY("Đúng giờ", onTime)];
+                    ptOnTime.Color = Color.FromArgb(46, 204, 113);
+                    ptOnTime.BackSecondaryColor = Color.FromArgb(39, 174, 96);
+                    ptOnTime.BackGradientStyle = GradientStyle.DiagonalLeft;
+                    ptOnTime.LegendText = $"Đúng giờ ({onTime})";
+                    ptOnTime.Label = onTime.ToString();
+
+                    // Đi trễ / Về sớm — Cam đỏ
+                    var ptLate = series.Points[series.Points.AddXY("Đi trễ / Về sớm", lateOrEarly)];
+                    ptLate.Color = Color.FromArgb(231, 76, 60);
+                    ptLate.BackSecondaryColor = Color.FromArgb(192, 57, 43);
+                    ptLate.BackGradientStyle = GradientStyle.DiagonalLeft;
+                    ptLate.LegendText = $"Trễ / Sớm ({lateOrEarly})";
+                    ptLate.Label = lateOrEarly.ToString();
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[PieChart] Lỗi: {ex.Message}");
+                MessageBox.Show($"[PieChart] Exception: {ex.Message}\n{ex.StackTrace}", "Lỗi Exception");
             }
         }
 
@@ -243,57 +248,62 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                var response = await client.GetAsync(
-                    "api/app/dashboard/monthly-salary-stats");
+                var response = await client.GetAsync("api/app/dashboard/monthly-salary-stats");
 
-                if (!response.IsSuccessStatusCode) return;
+                if (!response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show($"Column Chart API Failed: {response.StatusCode}\n{await response.Content.ReadAsStringAsync()}", "Lỗi API");
+                    return;
+                }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var dataArray = JsonSerializer.Deserialize<JsonElement>(json);
-
-                var series = chartSalary.Series["Salary"];
-                series.Points.Clear();
-
-                // Gradient màu cột: Xanh dương → Tím (mỗi tháng đậm hơn)
-                Color[] columnColors = new Color[]
+                using (JsonDocument doc = JsonDocument.Parse(json))
                 {
-                    Color.FromArgb(52, 152, 219),   // T1  — Xanh dương
-                    Color.FromArgb(55, 141, 216),   // T2
-                    Color.FromArgb(63, 130, 210),   // T3
-                    Color.FromArgb(75, 119, 204),   // T4
-                    Color.FromArgb(88, 108, 198),   // T5
-                    Color.FromArgb(101, 97, 192),   // T6  — Xanh tím
-                    Color.FromArgb(114, 86, 186),   // T7
-                    Color.FromArgb(127, 75, 180),   // T8
-                    Color.FromArgb(140, 64, 174),   // T9
-                    Color.FromArgb(142, 68, 173),   // T10 — Tím
-                    Color.FromArgb(155, 55, 165),   // T11
-                    Color.FromArgb(165, 45, 158)    // T12 — Tím đậm
-                };
+                    var dataArray = doc.RootElement;
+                    var series = chartSalary.Series["Salary"];
+                    series.Points.Clear();
 
-                int index = 0;
-                foreach (JsonElement item in dataArray.EnumerateArray())
-                {
-                    int month = item.GetProperty("month").GetInt32();
-                    decimal totalNet = item.GetProperty("totalNetSalary").GetDecimal();
+                    // Gradient màu cột: Xanh dương → Tím (mỗi tháng đậm hơn)
+                    Color[] columnColors = new Color[]
+                    {
+                        Color.FromArgb(52, 152, 219),   // T1  — Xanh dương
+                        Color.FromArgb(55, 141, 216),   // T2
+                        Color.FromArgb(63, 130, 210),   // T3
+                        Color.FromArgb(75, 119, 204),   // T4
+                        Color.FromArgb(88, 108, 198),   // T5
+                        Color.FromArgb(101, 97, 192),   // T6  — Xanh tím
+                        Color.FromArgb(114, 86, 186),   // T7
+                        Color.FromArgb(127, 75, 180),   // T8
+                        Color.FromArgb(140, 64, 174),   // T9
+                        Color.FromArgb(142, 68, 173),   // T10 — Tím
+                        Color.FromArgb(155, 55, 165),   // T11
+                        Color.FromArgb(165, 45, 158)    // T12 — Tím đậm
+                    };
 
-                    string label = $"T{month}";
-                    var pt = series.Points[series.Points.AddXY(label, (double)totalNet)];
+                    int index = 0;
+                    foreach (JsonElement item in dataArray.EnumerateArray())
+                    {
+                        int month = item.GetProperty("month").GetInt32();
+                        decimal totalNet = item.GetProperty("totalNetSalary").GetDecimal();
 
-                    // Áp màu gradient cho từng cột
-                    pt.Color = columnColors[index % columnColors.Length];
-                    pt.BackSecondaryColor = Color.FromArgb(
-                        Math.Max(0, pt.Color.R - 30),
-                        Math.Max(0, pt.Color.G - 30),
-                        Math.Max(0, pt.Color.B - 20));
-                    pt.BackGradientStyle = GradientStyle.TopBottom;
+                        string label = $"T{month}";
+                        var pt = series.Points[series.Points.AddXY(label, (double)totalNet)];
 
-                    index++;
+                        // Áp màu gradient cho từng cột
+                        pt.Color = columnColors[index % columnColors.Length];
+                        pt.BackSecondaryColor = Color.FromArgb(
+                            Math.Max(0, pt.Color.R - 30),
+                            Math.Max(0, pt.Color.G - 30),
+                            Math.Max(0, pt.Color.B - 20));
+                        pt.BackGradientStyle = GradientStyle.TopBottom;
+
+                        index++;
+                    }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ColumnChart] Lỗi: {ex.Message}");
+                MessageBox.Show($"[ColumnChart] Exception: {ex.Message}\n{ex.StackTrace}", "Lỗi Exception");
             }
         }
     }
