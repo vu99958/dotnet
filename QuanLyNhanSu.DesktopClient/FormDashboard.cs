@@ -51,6 +51,8 @@ namespace QuanLyNhanSu.DesktopClient
             VeGiaoDienDashboard();
             // Hàm vẽ Chấm Công sẽ được gọi từ file FormDashboard.Attendance.cs
             VeGiaoDienChamCong();
+            // Hàm vẽ Biểu đồ thống kê (Pie + Column) từ file FormDashboard.Charts.cs
+            VeGiaoDienBieuDo();
             
             this.Load += FormDashboard_Load; 
         }
@@ -220,10 +222,16 @@ namespace QuanLyNhanSu.DesktopClient
                             pnlStat1.Visible = true;
                             pnlStat2.Visible = true;
                             pnlStat3.Visible = true;
+
+                            // Hiện biểu đồ thống kê và tải dữ liệu
+                            pnlCharts.Visible = true;
+                            await LoadDashboardChartsAsync();
                         }  
                         else
                         {
                             btnPayroll.Text = "💰 PHIẾU LƯƠNG";
+                            // Ẩn biểu đồ cho User thường
+                            pnlCharts.Visible = false;
                         }
                     }
 
