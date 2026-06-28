@@ -12,13 +12,18 @@ namespace QuanLyNhanSu
     public class MyProfileAppService : ApplicationService
     {
         private readonly IdentityUserManager _userManager;
-        private readonly IRepository<UserKey, Guid> _userKeyRepository; // Bổ sung kho chứa Key
+        private readonly IRepository<UserKey, Guid> _userKeyRepository;
+        private readonly IRepository<Branch, Guid> _branchRepository;
 
-        // Nhúng cả 2 công cụ vào hàm khởi tạo
-        public MyProfileAppService(IdentityUserManager userManager, IRepository<UserKey, Guid> userKeyRepository)
+        // Nhúng cả 3 công cụ vào hàm khởi tạo
+        public MyProfileAppService(
+            IdentityUserManager userManager, 
+            IRepository<UserKey, Guid> userKeyRepository,
+            IRepository<Branch, Guid> branchRepository)
         {
             _userManager = userManager;
             _userKeyRepository = userKeyRepository;
+            _branchRepository = branchRepository;
         }
 
         public async Task<MyProfileDto> GetMyProfileAsync()
@@ -35,14 +40,20 @@ namespace QuanLyNhanSu
             var roles = await _userManager.GetRolesAsync(user);
             string roleDisplay = string.Join(", ", roles);
 
-            // 2. LOGIC VÁ LỖI: Nếu hệ thống lõi chưa có quyền, tìm trong bảng UserKey
+            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == userId.Value);
             if (string.IsNullOrEmpty(roleDisplay))
             {
-               var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == userId.Value);
                 if (userKey != null)
                 {
                     roleDisplay = userKey.Role; // Lấy đúng cái Role "admin" mà bạn đã tạo
                 }
+            }
+
+            string branchName = "Chưa phân bổ";
+            if (userKey?.BranchId != null)
+            {
+                var branch = await _branchRepository.FirstOrDefaultAsync(b => b.Id == userKey.BranchId.Value);
+                if (branch != null) branchName = branch.Name;
             }
 
             return new MyProfileDto
@@ -51,6 +62,7 @@ namespace QuanLyNhanSu
                 UserName = user.UserName,
                 Email = user.Email,
                 Roles = roleDisplay, // Trả về role đã được fix
+                BranchName = branchName,
                 CreationTime = user.CreationTime
             };
         }

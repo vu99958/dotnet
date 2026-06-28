@@ -94,15 +94,22 @@ namespace QuanLyNhanSu
         {
             var currentUserId = CurrentUser.Id ?? throw new UnauthorizedAccessException("Bạn chưa đăng nhập!");
             
+            if (input.StartDate.Date > input.EndDate.Date)
+            {
+                throw new UserFriendlyException("Từ chối: Ngày kết thúc không thể nhỏ hơn ngày bắt đầu!");
+            }
+
             // Kiểm tra: 1 user không được có 2 đơn trùng lặp thời gian trong cùng một ngày
+            // Loại trừ các đơn đã bị Từ chối (Rejected)
             bool isOverlap = await Repository.AnyAsync(x => 
                 x.UserId == currentUserId && 
+                x.Status != "Rejected" &&
                 x.StartDate.Date <= input.EndDate.Date && 
                 x.EndDate.Date >= input.StartDate.Date);
             
             if (isOverlap)
             {
-                throw new UserFriendlyException("Từ chối: Bạn đã có đơn xin nghỉ phép trong khoảng thời gian này!");
+                throw new UserFriendlyException("Từ chối: Bạn đã có đơn xin nghỉ phép (Đang chờ hoặc Đã duyệt) trong khoảng thời gian này!");
             }
 
             input.UserId = currentUserId;
@@ -128,10 +135,16 @@ namespace QuanLyNhanSu
                 throw new UserFriendlyException("Chỉ được sửa đơn khi ở trạng thái Đang chờ.");
             }
             
-            // Kiểm tra trùng lịch (loại trừ đơn hiện tại)
+            if (input.StartDate.Date > input.EndDate.Date)
+            {
+                throw new UserFriendlyException("Từ chối: Ngày kết thúc không thể nhỏ hơn ngày bắt đầu!");
+            }
+            
+            // Kiểm tra trùng lịch (loại trừ đơn hiện tại và các đơn đã bị Từ chối)
             bool isOverlap = await Repository.AnyAsync(x => 
                 x.Id != id &&
                 x.UserId == entity.UserId && 
+                x.Status != "Rejected" &&
                 x.StartDate.Date <= input.EndDate.Date && 
                 x.EndDate.Date >= input.StartDate.Date);
             

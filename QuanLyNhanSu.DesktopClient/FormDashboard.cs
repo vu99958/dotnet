@@ -17,14 +17,16 @@ namespace QuanLyNhanSu.DesktopClient
         private Button btnManageEmp = null!;
         private Button btnMenuAttendance = null!;
         private Button btnPayroll = null!;
+        private Button btnBranchManager = null!;
         private TextBox txtEmpUserName = null!, txtEmpEmail = null!, txtEmpPhone = null!, txtEmpPassword = null!;
         private TextBox txtSearchEmp = null!;
         private Label lblEmpPassword = null!, lblAddEditTitle = null!;
         private ComboBox cbEmpRole = null!;
+        private ComboBox cmbBranch = null!;
         private Button btnSaveEmp = null!, btnDeleteEmp = null!, btnIssueKey = null!;
         
+        private TextBox txtEditEmail = null!, txtEditPhone = null!, txtEditAddress = null!, txtEditBranch = null!;
         private Label lblProName = null!, lblProRole = null!, lblProDate = null!;
-        private TextBox txtEditEmail = null!, txtEditPhone = null!, txtEditAddress = null!;
         private Button btnEditProfile = null!;
         private DataGridView dgvEmployees = null!;
         private bool isEditMode = false;
@@ -116,6 +118,9 @@ namespace QuanLyNhanSu.DesktopClient
             btnPayroll = new Button { Text = "💰 Tính lương" };
             btnPayroll.Click += (s, e) => { FormPayroll frm = new FormPayroll(userToken, myCurrentRole); frm.ShowDialog(); };
 
+            btnBranchManager = new Button { Text = "🏢 Quản lý Chi Nhánh", Visible = false };
+            btnBranchManager.Click += (s, e) => { new FormBranchManager(userToken).ShowDialog(); };
+
             btnLogoutDash = new Button { Text = "Đăng xuất" };
             btnLogoutDash.Click += (s, e) => { Application.Restart(); };            // 2. PROFILE CARD
             pnlProfile = new Panel { Dock = DockStyle.Fill, BackColor = lightGray, Visible = false, AutoScroll = true, Padding = new Padding(30, 20, 30, 20) };
@@ -141,12 +146,18 @@ namespace QuanLyNhanSu.DesktopClient
             txtEditAddress = new TextBox { Text = "Chưa cập nhật", Font = new Font("Segoe UI", 11F), Dock = DockStyle.Fill, ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Color.White };
             pnlFieldAddr.Controls.Add(txtEditAddress);
 
+            Panel pnlFieldBranch = new Panel { Dock = DockStyle.Top, Height = 36 };
+            pnlFieldBranch.Controls.Add(new Label { Text = "🏢 Chi nhánh:", Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = darkGray, Dock = DockStyle.Left, Width = 100, TextAlign = ContentAlignment.MiddleLeft });
+            txtEditBranch = new TextBox { Text = "Đang tải...", Font = new Font("Segoe UI", 11F), Dock = DockStyle.Fill, ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Color.White };
+            pnlFieldBranch.Controls.Add(txtEditBranch);
+
             lblProDate = new Label { Text = "Tham gia: ...", Font = new Font("Segoe UI", 10F, FontStyle.Italic), ForeColor = Color.Gray, Dock = DockStyle.Top, Height = 30, TextAlign = ContentAlignment.MiddleLeft };
             btnEditProfile = new Button { Text = "✍️ CHỈNH SỬA HỒ SƠ", Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryGreen, Dock = DockStyle.Top, Height = 40, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnEditProfile.FlatAppearance.BorderSize = 0; btnEditProfile.Click += BtnEditProfile_Click; 
             // Add controls bottom-to-top because Dock.Top stacks in reverse add order
             pnlCard.Controls.Add(btnEditProfile);
             pnlCard.Controls.Add(lblProDate);
+            pnlCard.Controls.Add(pnlFieldBranch);
             pnlCard.Controls.Add(pnlFieldAddr);
             pnlCard.Controls.Add(pnlFieldPhone);
             pnlCard.Controls.Add(pnlFieldEmail);
@@ -164,7 +175,9 @@ namespace QuanLyNhanSu.DesktopClient
 
             dgvEmployees = new DataGridView { Dock = DockStyle.Fill, BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle, AllowUserToAddRows = false, ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, RowTemplate = { Height = 35 } };
             dgvEmployees.Columns.Add("Id", "ID"); dgvEmployees.Columns["Id"].Visible = false; 
-            dgvEmployees.Columns.Add("UserName", "TÀI KHOẢN"); dgvEmployees.Columns.Add("Email", "EMAIL"); dgvEmployees.Columns.Add("PhoneNumber", "SĐT");
+            dgvEmployees.Columns.Add("BranchId", "BranchId"); dgvEmployees.Columns["BranchId"].Visible = false; 
+            dgvEmployees.Columns.Add("Role", "Role"); dgvEmployees.Columns["Role"].Visible = false;
+            dgvEmployees.Columns.Add("UserName", "TÀI KHOẢN"); dgvEmployees.Columns.Add("Email", "EMAIL"); dgvEmployees.Columns.Add("PhoneNumber", "SĐT"); dgvEmployees.Columns.Add("BranchName", "CHI NHÁNH");
             dgvEmployees.CellDoubleClick += DgvEmployees_CellDoubleClick; 
             
             Panel pnlManageBottom = new Panel { Dock = DockStyle.Bottom, Height = 50 };
@@ -192,8 +205,10 @@ namespace QuanLyNhanSu.DesktopClient
             txtEmpPassword = new TextBox { Font = new Font("Segoe UI", 11F), Location = new Point(115, formY - 2), Width = 350, BorderStyle = BorderStyle.FixedSingle, UseSystemPasswordChar = true };
             pnlFormEdit.Controls.Add(new Label { Text = "Quyền:", Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = darkGray, Location = new Point(15, formY += 45), AutoSize = true });
             cbEmpRole = new ComboBox { Font = new Font("Segoe UI", 11F), Location = new Point(115, formY - 2), Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
-            Label lblHint = new Label { Text = "*Mật khẩu phải có hoa, thường, số, ký tự đặc biệt", Font = new Font("Segoe UI", 8.5F, FontStyle.Italic), ForeColor = Color.Gray, Location = new Point(115, formY + 30), Width = 350, Height= 20 };
-            pnlFormEdit.Controls.AddRange(new Control[] { txtEmpUserName, txtEmpEmail, txtEmpPhone, lblEmpPassword, txtEmpPassword, cbEmpRole, lblHint });
+            pnlFormEdit.Controls.Add(new Label { Text = "Chi nhánh:", Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = darkGray, Location = new Point(15, formY += 45), AutoSize = true });
+            cmbBranch = new ComboBox { Font = new Font("Segoe UI", 11F), Location = new Point(115, formY - 2), Width = 350, DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = "Name", ValueMember = "Id" };
+            Label lblHint = new Label { Text = "*Mật khẩu phải có hoa, thường, số, ký tự đặc biệt", Font = new Font("Segoe UI", 8.5F, FontStyle.Italic), ForeColor = Color.Gray, Location = new Point(115, formY + 35), Width = 350, Height= 20 };
+            pnlFormEdit.Controls.AddRange(new Control[] { txtEmpUserName, txtEmpEmail, txtEmpPhone, lblEmpPassword, txtEmpPassword, cbEmpRole, cmbBranch, lblHint });
 
             Panel pnlEditButtons = new Panel { Dock = DockStyle.Top, Height = 110, Padding = new Padding(0, 10, 0, 0) };
             btnSaveEmp = new Button { Text = "💾 LƯU THÔNG TIN", Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.White, BackColor = primaryGreen, Dock = DockStyle.Top, Height = 45, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
@@ -243,7 +258,7 @@ namespace QuanLyNhanSu.DesktopClient
             pnlSidebar.Controls.Add(pnlLogo);
 
             // Format các nút menu
-            Button[] menuButtons = { btnLogoutDash, btnPayroll, btnLeaveManagement, btnManageEmp, btnMenuAttendance, btnViewProfile };
+            Button[] menuButtons = { btnLogoutDash, btnBranchManager, btnPayroll, btnLeaveManagement, btnManageEmp, btnMenuAttendance, btnViewProfile };
             
             // Re-order buttons for docking. Since they dock Top, adding them in reverse logical order is needed if we iterate, 
             // but actually let's just configure them and add them directly.
@@ -265,6 +280,7 @@ namespace QuanLyNhanSu.DesktopClient
             btnLogoutDash.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
 
             // Add to sidebar (must be in correct visual order top to bottom: Profile -> Attendance -> Manage -> Leave -> Payroll)
+            pnlSidebar.Controls.Add(btnBranchManager);
             pnlSidebar.Controls.Add(btnPayroll);
             pnlSidebar.Controls.Add(btnLeaveManagement);
             pnlSidebar.Controls.Add(btnManageEmp);
@@ -438,6 +454,9 @@ namespace QuanLyNhanSu.DesktopClient
                             // Hiện biểu đồ thống kê và tải dữ liệu
                             if (pnlCharts != null) pnlCharts.Visible = true;
                             await LoadDashboardChartsAsync();
+
+                            // Hiện nút Quản lý Chi Nhánh cho Admin
+                            btnBranchManager.Visible = true;
                         }  
                         else
                         {

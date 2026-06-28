@@ -79,7 +79,7 @@ namespace QuanLyNhanSu
                 // ──────────────────────────────────────────────
                 var userAttendances = attendances
                     .Where(x => x.UserId == userId &&
-                           (x.Status == "Đúng giờ" || x.Status == "Đi trễ" || x.Status == "Về sớm"))
+                           (x.Status == "Đúng giờ" || x.Status == "Đi trễ" || x.Status == "Về sớm" || x.Status == "Đi trễ & Về sớm"))
                     .ToList();
                 int actualWorkDays = userAttendances.Count;
 
@@ -91,7 +91,7 @@ namespace QuanLyNhanSu
                 decimal totalPenalty = (totalLateMinutes + totalEarlyMinutes) * 2000m;
 
                 // ──────────────────────────────────────────────
-                // 3. NGÀY PHÉP CÓ LƯƠNG
+                // 3. NGÀY PHÉP CÓ LƯƠNG (Loại trừ Thứ 7, Chủ Nhật)
                 // ──────────────────────────────────────────────
                 var userLeaves = leaves.Where(x => x.UserId == userId).ToList();
                 int approvedLeaveDays = 0;
@@ -102,7 +102,14 @@ namespace QuanLyNhanSu
                     var leaveEnd = leave.EndDate.Date < endDate ? leave.EndDate.Date : endDate;
                     if (leaveEnd >= leaveStart)
                     {
-                        approvedLeaveDays += (int)(leaveEnd - leaveStart).TotalDays + 1;
+                        // Duyệt từng ngày trong khoảng nghỉ để loại trừ T7, CN
+                        for (var d = leaveStart; d <= leaveEnd; d = d.AddDays(1))
+                        {
+                            if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                            {
+                                approvedLeaveDays++;
+                            }
+                        }
                     }
                 }
 

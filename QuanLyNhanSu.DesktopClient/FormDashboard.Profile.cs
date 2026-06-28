@@ -51,6 +51,7 @@ namespace QuanLyNhanSu.DesktopClient
                         txtEditEmail.Text = data.GetProperty("email").GetString();
                         string roleStr = data.GetProperty("roles").GetString() ?? "USER";
                         lblProRole.Text = string.IsNullOrEmpty(roleStr) ? "USER" : roleStr.ToUpper();
+                        txtEditBranch.Text = data.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Chưa phân bổ";
                         DateTime creationTime = data.GetProperty("creationTime").GetDateTime();
                         lblProDate.Text = "Thành viên từ: " + creationTime.ToString("dd/MM/yyyy");
                     }

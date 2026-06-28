@@ -16,15 +16,21 @@ namespace QuanLyNhanSu
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;
         private readonly IRepository<IdentityUser, Guid> _userRepository;
         private readonly IRepository<UserKey, Guid> _userKeyRepository;
+        private readonly IRepository<Branch, Guid> _branchRepository;
+        private readonly IRepository<LeaveRequest, Guid> _leaveRequestRepository;
 
         public AttendanceAppService(
             IRepository<AttendanceRecord, Guid> attendanceRepository,
             IRepository<IdentityUser, Guid> userRepository,
-            IRepository<UserKey, Guid> userKeyRepository) 
+            IRepository<UserKey, Guid> userKeyRepository,
+            IRepository<Branch, Guid> branchRepository,
+            IRepository<LeaveRequest, Guid> leaveRequestRepository)
         {
             _attendanceRepository = attendanceRepository;
             _userRepository = userRepository;
             _userKeyRepository = userKeyRepository;
+            _branchRepository = branchRepository;
+            _leaveRequestRepository = leaveRequestRepository;
         }
 
         // ==========================================
@@ -92,22 +98,55 @@ namespace QuanLyNhanSu
         }
 
         // ==========================================
-        // 2. XỬ LÝ CHECK-IN 
+        // 2. XỬ LÝ CHECK-IN (GEOFENCING ĐA CHI NHÁNH)
         // ==========================================
-        public async Task<string> CheckInAsync()
+        public async Task<string> CheckInAsync(double userLat, double userLng)
         {
             var userId = CurrentUser.Id;
             if (userId == null) 
                 throw new UserFriendlyException("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
 
+            // === BƯỚC 1: KIỂM TRA CHẾ ĐỘ KHẮT KHE (STRICT GEOFENCING) ===
+            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == userId);
+            
+            if (userKey == null || !userKey.BranchId.HasValue)
+                throw new UserFriendlyException("Tài khoản của bạn chưa được phân bổ về chi nhánh nào. Vui lòng liên hệ Admin!");
+
+            var matchedBranch = await _branchRepository.FirstOrDefaultAsync(b => b.Id == userKey.BranchId.Value);
+            
+            if (matchedBranch == null)
+                throw new UserFriendlyException("Chi nhánh phân bổ không tồn tại hoặc đã bị xóa!");
+
+            // Tính khoảng cách
+            double dist = CalculateDistanceInMeters(userLat, userLng, matchedBranch.Latitude, matchedBranch.Longitude);
+            
+            if (dist > matchedBranch.RadiusInMeters)
+            {
+                throw new UserFriendlyException(
+                    $"Chấm công thất bại: Bạn đang không ở chi nhánh làm việc đã đăng ký! (Cách {dist:F0}m)");
+            }
+
+            double minDistance = dist;
+
+            // === BƯỚC 2: KIỂM TRA TRÙNG LẶP & NGHỈ PHÉP ===
             var today = DateTime.Now.Date;
             var now = DateTime.Now;
             var shiftStart = today.AddHours(8);
+
+            var approvedLeave = await _leaveRequestRepository.FirstOrDefaultAsync(x => 
+                x.UserId == userId && 
+                x.Status == "Approved" && 
+                today >= x.StartDate.Date && 
+                today <= x.EndDate.Date);
+
+            if (approvedLeave != null)
+                throw new UserFriendlyException("Hôm nay bạn đã có đơn xin nghỉ phép được phê duyệt, không cần điểm danh! Nếu bạn muốn đi làm, hãy liên hệ Admin để hủy đơn xin nghỉ.");
 
             var existingRecord = await _attendanceRepository.FirstOrDefaultAsync(x => x.UserId == userId && x.WorkDate == today);
             if (existingRecord != null)
                 throw new UserFriendlyException("Hôm nay bạn đã điểm danh vào ca rồi, không thể bấm 2 lần!");
 
+            // === BƯỚC 3: TÍNH TRẠNG THÁI ĐI TRỄ ===
             string statusMessage = "Đúng giờ";
             int lateMinutes = 0;
 
@@ -117,6 +156,7 @@ namespace QuanLyNhanSu
                 statusMessage = $"Đi trễ {lateMinutes} phút";
             }
 
+            // === BƯỚC 4: LƯU BẢN GHI + TỌA ĐỘ GPS ===
             var newRecord = new AttendanceRecord(
                 GuidGenerator.Create(),
                 userId.Value,
@@ -126,10 +166,12 @@ namespace QuanLyNhanSu
             newRecord.CheckInTime = now;
             newRecord.LateMinutes = lateMinutes;
             newRecord.EarlyLeaveMinutes = 0;
+            newRecord.Latitude = userLat;
+            newRecord.Longitude = userLng;
 
             await _attendanceRepository.InsertAsync(newRecord);
 
-            return $"Check-in thành công lúc {now:HH:mm} - Trạng thái: {statusMessage}";
+            return $"Check-in thành công lúc {now:HH:mm} - Trạng thái: {statusMessage} (Chi nhánh: {matchedBranch.Name}, cách {minDistance:F0}m)";
         }
 
         // ==========================================
@@ -158,12 +200,20 @@ namespace QuanLyNhanSu
             if (now < shiftEnd)
             {
                 earlyMinutes = (int)(shiftEnd - now).TotalMinutes;
-                statusMessage = $"Về sớm {earlyMinutes} phút";
+                statusMessage = $"Về sớm";
             }
 
             record.CheckOutTime = now;
-            record.Status += $" | {statusMessage}"; 
             record.EarlyLeaveMinutes = earlyMinutes;
+
+            // Xử lý hiển thị kép "Đi trễ & Về sớm"
+            if (statusMessage == "Về sớm")
+            {
+                if (record.Status == "Đi trễ")
+                    record.Status = "Đi trễ & Về sớm";
+                else
+                    record.Status = "Về sớm";
+            }
 
             await _attendanceRepository.UpdateAsync(record);
 
@@ -216,11 +266,23 @@ namespace QuanLyNhanSu
             var users = await _userRepository.GetListAsync(x => userIds.Contains(x.Id));
             var userDictionary = users.ToDictionary(x => x.Id, x => x);
 
+            var userKeys = await _userKeyRepository.GetListAsync(x => userIds.Contains(x.UserId));
+            var userKeyDict = userKeys.GroupBy(x => x.UserId).ToDictionary(g => g.Key, g => g.First());
+
+            var branches = await _branchRepository.GetListAsync();
+            var branchDict = branches.ToDictionary(b => b.Id, b => b.Name);
+
             var result = new List<AttendanceReportDto>();
 
             foreach (var record in records)
             {
                 var user = userDictionary.GetValueOrDefault(record.UserId);
+                var key = userKeyDict.GetValueOrDefault(record.UserId);
+                string branchName = "Không xác định";
+                if (key?.BranchId != null && branchDict.ContainsKey(key.BranchId.Value))
+                {
+                    branchName = branchDict[key.BranchId.Value];
+                }
                 
                 result.Add(new AttendanceReportDto
                 {
@@ -229,11 +291,68 @@ namespace QuanLyNhanSu
                     CheckInTime = record.CheckInTime?.ToString("HH:mm") ?? "--:--",
                     CheckOutTime = record.CheckOutTime?.ToString("HH:mm") ?? "--:--",
                     LateMinutes = record.LateMinutes,
-                    EarlyLeaveMinutes = record.EarlyLeaveMinutes
+                    EarlyLeaveMinutes = record.EarlyLeaveMinutes,
+                    Latitude = record.Latitude,
+                    Longitude = record.Longitude,
+                    BranchName = branchName
                 });
             }
 
             return result.OrderBy(x => x.EmployeeCode).ToList();
+        }
+
+        // ==========================================
+        // HAVERSINE FORMULA - TÍNH KHOẢNG CÁCH (MÉT)
+        // ==========================================
+        private double CalculateDistanceInMeters(double lat1, double lng1, double lat2, double lng2)
+        {
+            const double R = 6371000; // Bán kính Trái Đất (mét)
+            double dLat = (lat2 - lat1) * Math.PI / 180.0;
+            double dLng = (lng2 - lng1) * Math.PI / 180.0;
+
+            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                     + Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0)
+                     * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+
+            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
+
+        // ==========================================
+        // 5. API HỦY BỎ CHẤM CÔNG (CHỈ ADMIN)
+        // ==========================================
+        [Authorize]
+        public async Task DeleteDailyAttendanceAsync(string userName, string date)
+        {
+            // 1. Kiểm tra bảo mật
+            var currentUserId = CurrentUser.Id;
+            if (currentUserId == null)
+                throw new UserFriendlyException("Bạn chưa đăng nhập!");
+
+            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId);
+            bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
+            
+            if (!isAdmin)
+                throw new UserFriendlyException("Chỉ có Admin hoặc SuperAdmin mới có quyền hủy chấm công!");
+
+            // 2. Parse ngày tháng
+            DateTime parsedDate = DateTime.Now.Date;
+            if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var parsed))
+            {
+                parsedDate = parsed.Date;
+            }
+
+            // 3. Tìm nhân viên
+            var targetUser = await _userRepository.FirstOrDefaultAsync(x => x.UserName == userName);
+            if (targetUser == null)
+                throw new UserFriendlyException($"Không tìm thấy nhân viên có mã {userName}");
+
+            // 4. Tìm và xóa bản ghi
+            var record = await _attendanceRepository.FirstOrDefaultAsync(x => x.UserId == targetUser.Id && x.WorkDate == parsedDate);
+            if (record == null)
+                throw new UserFriendlyException($"Nhân viên {userName} không có dữ liệu chấm công trong ngày {parsedDate:dd/MM/yyyy}");
+
+            await _attendanceRepository.DeleteAsync(record);
         }
     }
 }

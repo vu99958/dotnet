@@ -13,5 +13,10 @@ namespace QuanLyNhanSu
         
         public int LateMinutes { get; set; }
         public int EarlyLeaveMinutes { get; set; }
+
+        // Tọa độ GPS khi chấm công (Geofencing)
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? BranchName { get; set; }
     }
 }

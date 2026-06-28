@@ -60,6 +60,7 @@ public class QuanLyNhanSuDbContext :
     public DbSet<SalaryProfile> SalaryProfiles { get; set; }
     public DbSet<Payslip> Payslips { get; set; }
     public DbSet<PayslipComplaint> PayslipComplaints { get; set; }
+    public DbSet<Branch> Branches { get; set; } // Bảng chi nhánh (Geofencing đa điểm)
 
     #endregion
 
@@ -101,6 +102,12 @@ public class QuanLyNhanSuDbContext :
         builder.Entity<PayslipComplaint>(b =>
         {
             b.ToTable("AppPayslipComplaints");
+            b.ConfigureByConvention();
+        });
+
+        builder.Entity<Branch>(b =>
+        {
+            b.ToTable("AppBranches"); // Bảng chi nhánh cho Geofencing
             b.ConfigureByConvention();
         });
 

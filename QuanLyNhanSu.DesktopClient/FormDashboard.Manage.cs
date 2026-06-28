@@ -17,6 +17,8 @@ namespace QuanLyNhanSu.DesktopClient
             try
             {
                 if (string.IsNullOrEmpty(userToken)) return;
+                await LoadBranchesToComboBoxAsync();
+
                 HttpClientHandler handler = new HttpClientHandler();
                 handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
                 using (HttpClient client = new HttpClient(handler))
@@ -32,15 +34,50 @@ namespace QuanLyNhanSu.DesktopClient
                         {
                             dgvEmployees.Rows.Add(
                                 emp.GetProperty("id").GetString() ?? "",
+                                emp.TryGetProperty("branchId", out var bId) && bId.ValueKind == JsonValueKind.String ? bId.GetString() : "",
+                                emp.TryGetProperty("role", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : "User",
                                 emp.GetProperty("userName").GetString() ?? "",
                                 emp.GetProperty("email").GetString() ?? "",
-                                emp.GetProperty("phoneNumber").GetString() ?? ""
+                                emp.GetProperty("phoneNumber").GetString() ?? "",
+                                emp.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Chưa phân bổ"
                             );
                         }
                     }
                 }
             }
             catch (Exception ex) { MessageBox.Show("Lỗi máy chủ: " + ex.Message); }
+        }
+
+        private async Task LoadBranchesToComboBoxAsync()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userToken)) return;
+                HttpClientHandler handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                using (HttpClient client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
+                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/branch");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var jsonString = await response.Content.ReadAsStringAsync();
+                        var dataList = JsonSerializer.Deserialize<JsonElement>(jsonString);
+                        var dt = new System.Data.DataTable();
+                        dt.Columns.Add("Id", typeof(string));
+                        dt.Columns.Add("Name", typeof(string));
+                        dt.Rows.Add("", "-- Chưa phân bổ --");
+                        foreach (var branch in dataList.EnumerateArray())
+                        {
+                            dt.Rows.Add(branch.GetProperty("id").GetString(), branch.GetProperty("name").GetString());
+                        }
+                        cmbBranch.DataSource = dt;
+                        cmbBranch.DisplayMember = "Name";
+                        cmbBranch.ValueMember = "Id";
+                    }
+                }
+            }
+            catch { /* Ignore error on load */ }
         }
 
         private void BtnAddEmp_Click(object? sender, EventArgs e)
@@ -63,6 +100,7 @@ namespace QuanLyNhanSu.DesktopClient
             
             lblEmpPassword.Visible = true; txtEmpPassword.Visible = true;
             btnDeleteEmp.Visible = false; btnIssueKey.Visible = false;
+            if (cmbBranch.Items.Count > 0) cmbBranch.SelectedIndex = 0;
             SwitchPanel(pnlAddEditEmployee);
         }
 
@@ -77,19 +115,28 @@ namespace QuanLyNhanSu.DesktopClient
                 txtEmpPhone.Text = dgvEmployees.Rows[e.RowIndex].Cells["PhoneNumber"].Value?.ToString() ?? "";
                 
                 cbEmpRole.Items.Clear();
+                string empRole = dgvEmployees.Rows[e.RowIndex].Cells["Role"].Value?.ToString() ?? "User";
+                if (empRole.Equals("superadmin", StringComparison.OrdinalIgnoreCase)) empRole = "SuperAdmin";
+                else if (empRole.Equals("admin", StringComparison.OrdinalIgnoreCase)) empRole = "Admin";
+                else empRole = "User";
+
                 if (myCurrentRole == "superadmin")
                 {
                     cbEmpRole.Items.AddRange(new string[] { "SuperAdmin", "Admin", "User" });
-                    cbEmpRole.SelectedIndex = 2; 
                 }
                 else
                 {
-                    cbEmpRole.Items.Add("User");
-                    cbEmpRole.SelectedIndex = 0;
+                    cbEmpRole.Items.Add(empRole);
                 }
+                cbEmpRole.SelectedItem = empRole;
 
                 lblEmpPassword.Visible = false; txtEmpPassword.Visible = false;
                 btnDeleteEmp.Visible = true; btnIssueKey.Visible = true;
+                
+                string? branchId = dgvEmployees.Rows[e.RowIndex].Cells["BranchId"].Value?.ToString();
+                if (!string.IsNullOrEmpty(branchId)) cmbBranch.SelectedValue = branchId;
+                else if (cmbBranch.Items.Count > 0) cmbBranch.SelectedIndex = 0;
+
                 SwitchPanel(pnlAddEditEmployee);
             }
         }
@@ -107,15 +154,18 @@ namespace QuanLyNhanSu.DesktopClient
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
 
                     HttpResponseMessage response;
+                    string? branchIdVal = cmbBranch.SelectedValue?.ToString();
+                    Guid? selectedBranchId = string.IsNullOrEmpty(branchIdVal) ? null : Guid.Parse(branchIdVal);
+
                     if (currentEditUserId == null) 
                     {
-                        var newUser = new { userName = txtEmpUserName.Text, email = txtEmpEmail.Text, phoneNumber = txtEmpPhone.Text, password = txtEmpPassword.Text, role = cbEmpRole.Text };
+                        var newUser = new { userName = txtEmpUserName.Text, email = txtEmpEmail.Text, phoneNumber = txtEmpPhone.Text, password = txtEmpPassword.Text, role = cbEmpRole.Text, branchId = selectedBranchId };
                         var content = new StringContent(JsonSerializer.Serialize(newUser), Encoding.UTF8, "application/json");
                         response = await client.PostAsync("https://localhost:44387/api/app/employee/account", content);
                     }
                     else
                     {
-                        var updatedUser = new { userName = txtEmpUserName.Text, email = txtEmpEmail.Text, phoneNumber = txtEmpPhone.Text, role = cbEmpRole.Text };
+                        var updatedUser = new { userName = txtEmpUserName.Text, email = txtEmpEmail.Text, phoneNumber = txtEmpPhone.Text, role = cbEmpRole.Text, branchId = selectedBranchId };
                         var content = new StringContent(JsonSerializer.Serialize(updatedUser), Encoding.UTF8, "application/json");
                         response = await client.PutAsync($"https://localhost:44387/api/app/employee/{currentEditUserId}/account", content);
                     }

@@ -8,8 +8,8 @@ namespace QuanLyNhanSu
     // Bản cam kết: Báo cho hệ thống biết Phân hệ này có 3 chức năng
     public interface IAttendanceAppService : IApplicationService
     {
-        // 1. Hàm ghi nhận giờ vào làm (WinForms/Web cũ)
-        Task<string> CheckInAsync();
+        // 1. Hàm ghi nhận giờ vào làm (có xác thực vị trí Geofencing)
+        Task<string> CheckInAsync(double userLat, double userLng);
 
         // 2. Hàm ghi nhận giờ tan làm (WinForms/Web cũ)
         Task<string> CheckOutAsync();
@@ -18,5 +18,8 @@ namespace QuanLyNhanSu
         Task<int> SyncBulkDataAsync(List<SyncAttendanceDto> inputList);
         // 👉 THÊM DÒNG NÀY: API trả về báo cáo chấm công cho giao diện HR
         Task<List<AttendanceReportDto>> GetDailyReportAsync(string date);
+
+        // 👉 THÊM DÒNG NÀY: API Xóa/Hủy chấm công dành cho Admin
+        Task DeleteDailyAttendanceAsync(string userName, string date);
     }
 }

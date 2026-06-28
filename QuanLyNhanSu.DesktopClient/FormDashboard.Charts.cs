@@ -162,6 +162,8 @@ namespace QuanLyNhanSu.DesktopClient
         /// </summary>
         private async Task LoadDashboardChartsAsync()
         {
+            if (myCurrentRole != "admin" && myCurrentRole != "superadmin") return;
+
             try
             {
                 HttpClientHandler handler = new HttpClientHandler();

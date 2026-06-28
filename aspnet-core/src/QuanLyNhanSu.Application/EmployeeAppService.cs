@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Volo.Abp;
@@ -16,12 +17,18 @@ namespace QuanLyNhanSu
         private readonly IdentityUserManager _userManager;
         private readonly IIdentityUserRepository _userRepository;
         private readonly IRepository<UserKey, Guid> _userKeyRepository;
+        private readonly IRepository<Branch, Guid> _branchRepository;
 
-        public EmployeeAppService(IdentityUserManager userManager, IIdentityUserRepository userRepository, IRepository<UserKey, Guid> userKeyRepository)
+        public EmployeeAppService(
+            IdentityUserManager userManager, 
+            IIdentityUserRepository userRepository, 
+            IRepository<UserKey, Guid> userKeyRepository,
+            IRepository<Branch, Guid> branchRepository)
         {
             _userManager = userManager;
             _userRepository = userRepository;
             _userKeyRepository = userKeyRepository;
+            _branchRepository = branchRepository;
         }
 
         // --- HÀM ẨN: Tra cứu Quyền hạn từ bảng UserKey ---
@@ -37,12 +44,28 @@ namespace QuanLyNhanSu
         public async Task<List<EmployeeDto>> GetListEmployeeAsync()
         {
             var users = await _userRepository.GetListAsync();
+            var userKeys = await _userKeyRepository.GetListAsync();
+            var keyDict = userKeys.GroupBy(k => k.UserId).ToDictionary(g => g.Key, g => g.First());
+            
+            var branches = await _branchRepository.GetListAsync();
+            var branchDict = branches.ToDictionary(b => b.Id, b => b.Name);
+
             var result = new List<EmployeeDto>();
             foreach (var user in users)
             {
+                var key = keyDict.GetValueOrDefault(user.Id);
+                string branchName = "Chưa phân bổ";
+                if (key?.BranchId != null && branchDict.ContainsKey(key.BranchId.Value))
+                {
+                    branchName = branchDict[key.BranchId.Value];
+                }
+
                 result.Add(new EmployeeDto {
                     Id = user.Id, UserName = user.UserName.ToUpper(), Email = user.Email,
-                    PhoneNumber = user.PhoneNumber ?? "Chưa cập nhật", CreationTime = user.CreationTime
+                    PhoneNumber = user.PhoneNumber ?? "Chưa cập nhật", CreationTime = user.CreationTime,
+                    BranchId = key?.BranchId,
+                    BranchName = branchName,
+                    Role = key?.Role ?? "User"
                 });
             }
             return result;
@@ -72,8 +95,9 @@ namespace QuanLyNhanSu
             // FIX CS1061: Dùng hàm của UserManager để set số điện thoại an toàn
             await _userManager.SetPhoneNumberAsync(user, input.PhoneNumber);
 
-            // Tự động sinh Key và gắn Quyền vào bảng UserKey
+            // Tự động sinh Key và gắn Quyền, BranchId vào bảng UserKey
             var newKey = new UserKey(GuidGenerator.Create(), user.Id, Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper(), input.Role);
+            newKey.BranchId = input.BranchId;
             await _userKeyRepository.InsertAsync(newKey);
         }
 
@@ -95,8 +119,8 @@ namespace QuanLyNhanSu
             if (targetRole == "admin" && myRole != "superadmin" && currentUserId != id)
                 throw new UserFriendlyException("Từ chối: Admin không được sửa hồ sơ của Admin khác!");
 
-            if (input.Role.ToLower() == "admin" && myRole != "superadmin")
-                throw new UserFriendlyException("Từ chối: Bạn không đủ quyền để nâng chức người này lên Admin!");
+            if (input.Role.ToLower() != targetRole && (input.Role.ToLower() == "admin" || input.Role.ToLower() == "superadmin") && myRole != "superadmin")
+                throw new UserFriendlyException("Từ chối: Bạn không đủ quyền để thăng cấp người này lên " + input.Role + "!");
 
             var user = await _userManager.FindByIdAsync(id.ToString());
             // FIX CS8602: Kiểm tra User có tồn tại không trước khi sửa
@@ -110,10 +134,11 @@ namespace QuanLyNhanSu
             var updateResult = await _userManager.UpdateAsync(user);
             if (!updateResult.Succeeded) throw new UserFriendlyException("Cập nhật thông tin gốc thất bại!");
 
-            // Cập nhật Quyền
+            // Cập nhật Quyền và BranchId
             var key = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == id);
             if (key != null) {
                 key.Role = input.Role;
+                key.BranchId = input.BranchId;
                 await _userKeyRepository.UpdateAsync(key);
             }
         }

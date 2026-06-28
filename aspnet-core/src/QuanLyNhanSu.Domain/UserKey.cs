@@ -35,6 +35,11 @@ public class UserKey : FullAuditedAggregateRoot<Guid>
     /// </summary>
     public DateTime? ExpirationDate { get; set; }
 
+    /// <summary>
+    /// ID chi nhánh phân bổ (Geofencing)
+    /// </summary>
+    public Guid? BranchId { get; set; }
+
     public UserKey() { }
 
     public UserKey(Guid id, Guid userId, string key, string role, string? description = null) : base(id)

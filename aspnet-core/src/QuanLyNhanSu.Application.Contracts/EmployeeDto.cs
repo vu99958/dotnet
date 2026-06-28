@@ -10,6 +10,9 @@ namespace QuanLyNhanSu
         public string Email { get; set; }
         public string PhoneNumber { get; set; }
         public DateTime CreationTime { get; set; }
+        public Guid? BranchId { get; set; }
+        public string? BranchName { get; set; }
+        public string Role { get; set; }
     }
 
     // Khuôn Thêm mới nhân viên
@@ -20,6 +23,7 @@ namespace QuanLyNhanSu
         public string PhoneNumber { get; set; }
         public string Password { get; set; }
         public string Role { get; set; }
+        public Guid? BranchId { get; set; }
     }
 
     // Khuôn Chỉnh sửa nhân viên
@@ -29,6 +33,7 @@ namespace QuanLyNhanSu
         public string Email { get; set; }
         public string PhoneNumber { get; set; }
         public string Role { get; set; }
+        public Guid? BranchId { get; set; }
     }
     // Khuôn chứa dữ liệu thống kê cho Bảng điều khiển
     public class DashboardStatsDto
