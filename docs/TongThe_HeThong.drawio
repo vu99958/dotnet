@@ -29,45 +29,45 @@
         </mxCell>
 
         <!-- Làn 1: Admin Nodes -->
-        <mxCell id="a1" value="Thiết lập Tọa độ&#xa;Chi nhánh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="480" y="120" width="140" height="60" as="geometry" />
+        <mxCell id="a1" value="Thiết lập Tọa độ&#xa;Chi nhánh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-admin">
+          <mxGeometry x="440" y="80" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="a2" value="Quản lý Hồ sơ &amp;&#xa;Phân bổ NV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="660" y="120" width="140" height="60" as="geometry" />
+        <mxCell id="a2" value="Quản lý Hồ sơ &amp;&#xa;Phân bổ NV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-admin">
+          <mxGeometry x="620" y="80" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="a3" value="Tiếp nhận &amp;&#xa;Phê duyệt Đơn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="660" y="240" width="140" height="60" as="geometry" />
+        <mxCell id="a3" value="Tiếp nhận &amp;&#xa;Phê duyệt Đơn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-admin">
+          <mxGeometry x="620" y="200" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="a4" value="Chạy nghiệp vụ&#xa;Tính lương" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="860" y="120" width="140" height="60" as="geometry" />
+        <mxCell id="a4" value="Chạy nghiệp vụ&#xa;Tính lương" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-admin">
+          <mxGeometry x="820" y="80" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="a5" value="Xử lý Khiếu nại&#xa;từ NV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="1060" y="120" width="140" height="60" as="geometry" />
+        <mxCell id="a5" value="Xử lý Khiếu nại&#xa;từ NV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-admin">
+          <mxGeometry x="1020" y="80" width="140" height="60" as="geometry" />
         </mxCell>
 
         <!-- Làn 2: Emp Nodes -->
-        <mxCell id="e1" value="Check-in / Check-out&#xa;(Tọa độ GPS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="480" y="480" width="140" height="60" as="geometry" />
+        <mxCell id="e1" value="Check-in / Check-out&#xa;(Tọa độ GPS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-emp">
+          <mxGeometry x="440" y="140" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="e2" value="Tra cứu Báo cáo&#xa;ngày công" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="660" y="480" width="140" height="60" as="geometry" />
+        <mxCell id="e2" value="Tra cứu Báo cáo&#xa;ngày công" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-emp">
+          <mxGeometry x="620" y="140" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="e3" value="Tạo và gửi Đơn&#xa;xin nghỉ phép" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="660" y="380" width="140" height="60" as="geometry" />
+        <mxCell id="e3" value="Tạo và gửi Đơn&#xa;xin nghỉ phép" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-emp">
+          <mxGeometry x="620" y="40" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="e4" value="Xem Phiếu lương&#xa;hàng tháng" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="860" y="480" width="140" height="60" as="geometry" />
+        <mxCell id="e4" value="Xem Phiếu lương&#xa;hàng tháng" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-emp">
+          <mxGeometry x="820" y="140" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="e5" value="Tạo Khiếu nại&#xa;lương / công" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="1060" y="480" width="140" height="60" as="geometry" />
+        <mxCell id="e5" value="Tạo Khiếu nại&#xa;lương / công" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=14;fontColor=#000000;" vertex="1" parent="pool-emp">
+          <mxGeometry x="1020" y="140" width="140" height="60" as="geometry" />
         </mxCell>
 
         <!-- Edges (Routing) -->
