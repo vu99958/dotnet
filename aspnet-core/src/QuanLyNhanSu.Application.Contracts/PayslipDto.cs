@@ -10,7 +10,7 @@ namespace QuanLyNhanSu
         public int Month { get; set; }
         public int Year { get; set; }
         public int StandardWorkDays { get; set; }
-        public int ActualWorkDays { get; set; }
+        public double ActualWorkDays { get; set; }
         public int ApprovedLeaveDays { get; set; }
         public int OvertimeDays { get; set; }
         public decimal OvertimePay { get; set; }

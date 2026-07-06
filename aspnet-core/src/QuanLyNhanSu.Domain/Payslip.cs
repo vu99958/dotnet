@@ -13,7 +13,7 @@ namespace QuanLyNhanSu
         public int StandardWorkDays { get; set; }
 
         // Số ngày đi làm thực tế (trong giờ hành chính)
-        public int ActualWorkDays { get; set; }
+        public double ActualWorkDays { get; set; }
 
         // Số ngày nghỉ có phép (được hưởng lương)
         public int ApprovedLeaveDays { get; set; }
@@ -33,7 +33,7 @@ namespace QuanLyNhanSu
         protected Payslip() { }
 
         public Payslip(Guid id, Guid userId, int month, int year,
-            int standardWorkDays, int actualWorkDays, int approvedLeaveDays,
+            int standardWorkDays, double actualWorkDays, int approvedLeaveDays,
             int overtimeDays, decimal overtimePay,
             decimal totalPenalty, decimal grossSalary, decimal netSalary)
             : base(id)

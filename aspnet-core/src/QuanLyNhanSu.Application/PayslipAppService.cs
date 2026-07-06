@@ -81,7 +81,19 @@ namespace QuanLyNhanSu
                     .Where(x => x.UserId == userId &&
                            (x.Status == "Đúng giờ" || x.Status == "Đi trễ" || x.Status == "Về sớm" || x.Status == "Đi trễ & Về sớm"))
                     .ToList();
-                int actualWorkDays = userAttendances.Count;
+                
+                double actualWorkDays = 0;
+                foreach (var att in userAttendances)
+                {
+                    if (att.CheckInTime != null && att.CheckOutTime != null)
+                    {
+                        actualWorkDays += 1.0;
+                    }
+                    else if (att.CheckInTime != null && att.CheckOutTime == null)
+                    {
+                        actualWorkDays += 0.5; // Phạt nhân viên quên Check-out (chỉ tính nửa công)
+                    }
+                }
 
                 // ──────────────────────────────────────────────
                 // 2. PHẠT ĐI TRỄ / VỀ SỚM
@@ -115,20 +127,25 @@ namespace QuanLyNhanSu
 
                 // ──────────────────────────────────────────────
                 // 4. TÍNH TĂNG CA (OVERTIME)
-                // Nếu tổng ngày làm + ngày phép > ngày chuẩn → phần dư là tăng ca
-                // Tăng ca được trả 150% lương ngày (theo Luật Lao động VN)
                 // ──────────────────────────────────────────────
                 decimal dailySalary = profile.BaseSalary / standardWorkDays;
-                int totalPaidDays = actualWorkDays + approvedLeaveDays;
-                int regularDays = Math.Min(totalPaidDays, standardWorkDays);
-                int overtimeDays = Math.Max(0, totalPaidDays - standardWorkDays);
-                decimal overtimePay = overtimeDays * dailySalary * 1.5m;
+                double totalPaidDays = actualWorkDays + approvedLeaveDays;
+                
+                // Chặn trần ngày công
+                if (totalPaidDays > standardWorkDays)
+                {
+                    totalPaidDays = standardWorkDays;
+                }
+
+                int overtimeDays = 0; // Tính năng Overtime tạm khóa trần bằng với ngày công chuẩn, chờ phát triển quy trình duyệt OvertimeRequest riêng.
+                decimal overtimePay = 0;
 
                 // ──────────────────────────────────────────────
                 // 5. TÍNH LƯƠNG GROSS & NET
                 // Gross = Lương ngày thường + Phụ cấp + Tăng ca - Phạt
                 // Net   = Gross × 89.5% (trừ 10.5% BHXH + BHYT + BHTN)
                 // ──────────────────────────────────────────────
+                decimal regularDays = (decimal)totalPaidDays;
                 decimal grossSalary = (dailySalary * regularDays) + profile.Allowance + overtimePay - totalPenalty;
                 if (grossSalary < 0) grossSalary = 0;
                 decimal netSalary = grossSalary * 0.895m;
