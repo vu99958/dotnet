@@ -18,6 +18,7 @@ namespace QuanLyNhanSu.DesktopClient
         private Button btnMenuAttendance = null!;
         private Button btnPayroll = null!;
         private Button btnBranchManager = null!;
+        private Button btnMonthlyReport = null!;
         private TextBox txtEmpUserName = null!, txtEmpEmail = null!, txtEmpPhone = null!, txtEmpPassword = null!;
         private TextBox txtSearchEmp = null!;
         private Label lblEmpPassword = null!, lblAddEditTitle = null!;
@@ -61,6 +62,8 @@ namespace QuanLyNhanSu.DesktopClient
             VeGiaoDienChamCong();
             // Hàm vẽ Biểu đồ thống kê (Pie + Column) từ file FormDashboard.Charts.cs
             VeGiaoDienBieuDo();
+            // Hàm vẽ Báo cáo Tổng hợp Tháng từ file FormDashboard.MonthlyReport.cs
+            VeGiaoDienBaoCaoThang();
             
             // Refactor UI Layout
             InitializeCustomUI();
@@ -120,6 +123,9 @@ namespace QuanLyNhanSu.DesktopClient
 
             btnBranchManager = new Button { Text = "🏢 Quản lý Chi Nhánh", Visible = false };
             btnBranchManager.Click += (s, e) => { new FormBranchManager(userToken).ShowDialog(); };
+
+            btnMonthlyReport = new Button { Text = "📊 Báo cáo tháng", Visible = false };
+            btnMonthlyReport.Click += async (s, e) => { SwitchPanel(pnlMonthlyReport); await LoadMonthlyReportAsync(); };
 
             btnLogoutDash = new Button { Text = "Đăng xuất" };
             btnLogoutDash.Click += (s, e) => { Application.Restart(); };            // 2. PROFILE CARD
@@ -258,7 +264,7 @@ namespace QuanLyNhanSu.DesktopClient
             pnlSidebar.Controls.Add(pnlLogo);
 
             // Format các nút menu
-            Button[] menuButtons = { btnLogoutDash, btnBranchManager, btnPayroll, btnLeaveManagement, btnManageEmp, btnMenuAttendance, btnViewProfile };
+            Button[] menuButtons = { btnLogoutDash, btnMonthlyReport, btnBranchManager, btnPayroll, btnLeaveManagement, btnManageEmp, btnMenuAttendance, btnViewProfile };
             
             // Re-order buttons for docking. Since they dock Top, adding them in reverse logical order is needed if we iterate, 
             // but actually let's just configure them and add them directly.
@@ -280,6 +286,7 @@ namespace QuanLyNhanSu.DesktopClient
             btnLogoutDash.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
 
             // Add to sidebar (must be in correct visual order top to bottom: Profile -> Attendance -> Manage -> Leave -> Payroll)
+            pnlSidebar.Controls.Add(btnMonthlyReport);
             pnlSidebar.Controls.Add(btnBranchManager);
             pnlSidebar.Controls.Add(btnPayroll);
             pnlSidebar.Controls.Add(btnLeaveManagement);
@@ -351,6 +358,7 @@ namespace QuanLyNhanSu.DesktopClient
             pnlManageContent.Dock = DockStyle.Fill;
             pnlAddEditEmployee.Dock = DockStyle.Fill;
             if (pnlAttendance != null) pnlAttendance.Dock = DockStyle.Fill;
+            if (pnlMonthlyReport != null) pnlMonthlyReport.Dock = DockStyle.Fill;
 
             // FIX 3: Chỉnh lại Chart — đảm bảo chart được Add vào Panel đúng cách
             if (pnlCharts != null)
@@ -408,6 +416,7 @@ namespace QuanLyNhanSu.DesktopClient
             pnlMainContent.Controls.Add(pnlAddEditEmployee);
             pnlMainContent.Controls.Add(pnlManageContent);
             if (pnlAttendance != null) pnlMainContent.Controls.Add(pnlAttendance);
+            if (pnlMonthlyReport != null) pnlMainContent.Controls.Add(pnlMonthlyReport);
             pnlMainContent.Controls.Add(pnlProfile);
             pnlMainContent.Controls.Add(pnlDashboard);
 
@@ -422,7 +431,8 @@ namespace QuanLyNhanSu.DesktopClient
         private void SwitchPanel(Panel target)
         {
             pnlDashboard.Visible = false; pnlProfile.Visible = false; pnlManageContent.Visible = false; pnlAddEditEmployee.Visible = false;
-            if(pnlAttendance != null) pnlAttendance.Visible = false; 
+            if(pnlAttendance != null) pnlAttendance.Visible = false;
+            if(pnlMonthlyReport != null) pnlMonthlyReport.Visible = false;
             target.Visible = true;
             target.BringToFront();
         }
@@ -457,6 +467,9 @@ namespace QuanLyNhanSu.DesktopClient
 
                             // Hiện nút Quản lý Chi Nhánh cho Admin
                             btnBranchManager.Visible = true;
+
+                            // Hiện nút Báo cáo Tổng hợp Tháng cho Admin
+                            btnMonthlyReport.Visible = true;
                         }  
                         else
                         {
