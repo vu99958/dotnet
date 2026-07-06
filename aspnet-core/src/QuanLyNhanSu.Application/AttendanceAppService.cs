@@ -221,7 +221,11 @@ namespace QuanLyNhanSu
         }
 
         // ==========================================
-        // 4. API BÁO CÁO CHẤM CÔNG (ĐÃ PHÂN QUYỀN)
+        // 4. API BÁO CÁO CHẤM CÔNG NGÀY (ĐÃ PHÂN QUYỀN + PHÁT HIỆN VẮNG MẶT)
+        // ==========================================
+        // 🔑 LOGIC MỚI: Lấy danh sách TẤT CẢ nhân viên làm gốc (Left Join),
+        //    thay vì chỉ lấy từ bảng AttendanceRecord.
+        //    → Ai không có dữ liệu check-in VÀ không có đơn nghỉ phép = "Vắng mặt không phép".
         // ==========================================
         public async Task<List<AttendanceReportDto>> GetDailyReportAsync(string date)
         {
@@ -236,66 +240,118 @@ namespace QuanLyNhanSu
                 parsedDate = parsed.Date;
             }
 
-            var startOfDay = parsedDate.Date;
-            var endOfDay = startOfDay.AddDays(1).AddTicks(-1);
-
-            List<AttendanceRecord> records;
-
             // 👉 BẢO MẬT: Kiểm tra quyền để quyết định dữ liệu trả về
-            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId);
-            bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
-            
+            var currentUserKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId);
+            bool isAdmin = currentUserKey != null && (currentUserKey.Role.ToLower() == "admin" || currentUserKey.Role.ToLower() == "superadmin");
+
+            // ==========================================
+            // BƯỚC 1: Lấy danh sách nhân viên làm GỐC
+            // ==========================================
+            List<IdentityUser> allUsers;
             if (isAdmin)
             {
-                // Quản lý được xem toàn bộ bảng chấm công của công ty
-                records = await _attendanceRepository.GetListAsync(
-                    x => x.WorkDate >= startOfDay && x.WorkDate <= endOfDay
-                );
+                // Admin: xem tất cả nhân viên trong hệ thống
+                allUsers = await _userRepository.GetListAsync();
             }
             else
             {
-                // Nhân viên chỉ được xem đúng dòng dữ liệu của mình
-                records = await _attendanceRepository.GetListAsync(
-                    x => x.UserId == currentUserId && x.WorkDate >= startOfDay && x.WorkDate <= endOfDay
-                );
+                // Nhân viên thường: chỉ xem chính mình
+                var me = await _userRepository.FirstOrDefaultAsync(x => x.Id == currentUserId);
+                allUsers = me != null ? new List<IdentityUser> { me } : new List<IdentityUser>();
             }
 
-            if (!records.Any()) return new List<AttendanceReportDto>();
+            if (!allUsers.Any()) return new List<AttendanceReportDto>();
 
-            var userIds = records.Select(x => x.UserId).Distinct().ToList();
-            var users = await _userRepository.GetListAsync(x => userIds.Contains(x.Id));
-            var userDictionary = users.ToDictionary(x => x.Id, x => x);
+            // ==========================================
+            // BƯỚC 2: Lấy toàn bộ dữ liệu liên quan trong ngày
+            // ==========================================
+            var allUserIds = allUsers.Select(u => u.Id).ToList();
 
-            var userKeys = await _userKeyRepository.GetListAsync(x => userIds.Contains(x.UserId));
+            // Lấy tất cả bản ghi chấm công trong ngày
+            var attendanceRecords = await _attendanceRepository.GetListAsync(
+                x => allUserIds.Contains(x.UserId) && x.WorkDate == parsedDate
+            );
+
+            // Lấy tất cả đơn nghỉ phép được duyệt mà ngày `parsedDate` nằm trong khoảng
+            var approvedLeaves = await _leaveRequestRepository.GetListAsync(
+                x => allUserIds.Contains(x.UserId)
+                     && x.Status == "Approved"
+                     && parsedDate >= x.StartDate.Date
+                     && parsedDate <= x.EndDate.Date
+            );
+
+            // Lấy thông tin UserKey (chi nhánh, vai trò)
+            var userKeys = await _userKeyRepository.GetListAsync(x => allUserIds.Contains(x.UserId));
             var userKeyDict = userKeys.GroupBy(x => x.UserId).ToDictionary(g => g.Key, g => g.First());
 
+            // Lấy danh sách chi nhánh
             var branches = await _branchRepository.GetListAsync();
             var branchDict = branches.ToDictionary(b => b.Id, b => b.Name);
 
+            // ==========================================
+            // BƯỚC 3: LEFT JOIN thủ công trong C# (In-Memory)
+            // Cú pháp: Duyệt từng User, tìm AttendanceRecord & LeaveRequest tương ứng.
+            // Nếu KHÔNG TÌM THẤY → đó chính là Left Join trả null.
+            // ==========================================
             var result = new List<AttendanceReportDto>();
 
-            foreach (var record in records)
+            foreach (var user in allUsers)
             {
-                var user = userDictionary.GetValueOrDefault(record.UserId);
-                var key = userKeyDict.GetValueOrDefault(record.UserId);
+                // Left Join: Tìm bản ghi chấm công của user trong ngày
+                var record = attendanceRecords.FirstOrDefault(r => r.UserId == user.Id);
+
+                // Left Join: Tìm đơn xin nghỉ phép được duyệt cho user trong ngày
+                var leave = approvedLeaves.FirstOrDefault(l => l.UserId == user.Id);
+
+                // Lấy thông tin chi nhánh
+                var key = userKeyDict.GetValueOrDefault(user.Id);
                 string branchName = "Không xác định";
                 if (key?.BranchId != null && branchDict.ContainsKey(key.BranchId.Value))
                 {
                     branchName = branchDict[key.BranchId.Value];
                 }
-                
-                result.Add(new AttendanceReportDto
+
+                // ==========================================
+                // BƯỚC 4: XÁC ĐỊNH TRẠNG THÁI TỔNG HỢP
+                // ==========================================
+                var dto = new AttendanceReportDto
                 {
-                    EmployeeCode = user?.UserName ?? "Unknown",
-                    EmployeeName = user?.Name ?? user?.UserName ?? "Không rõ",
-                    CheckInTime = record.CheckInTime?.ToString("HH:mm") ?? "--:--",
-                    CheckOutTime = record.CheckOutTime?.ToString("HH:mm") ?? "--:--",
-                    LateMinutes = record.LateMinutes,
-                    EarlyLeaveMinutes = record.EarlyLeaveMinutes,
-                    Latitude = record.Latitude,
-                    Longitude = record.Longitude,
+                    EmployeeCode = user.UserName ?? "Unknown",
+                    EmployeeName = user.Name ?? user.UserName ?? "Không rõ",
                     BranchName = branchName
-                });
+                };
+
+                if (record != null)
+                {
+                    // ✅ CÓ dữ liệu chấm công → "Có mặt"
+                    dto.CheckInTime = record.CheckInTime?.ToString("HH:mm") ?? "--:--";
+                    dto.CheckOutTime = record.CheckOutTime?.ToString("HH:mm") ?? "--:--";
+                    dto.LateMinutes = record.LateMinutes;
+                    dto.EarlyLeaveMinutes = record.EarlyLeaveMinutes;
+                    dto.Latitude = record.Latitude;
+                    dto.Longitude = record.Longitude;
+                    dto.AttendanceStatus = "Có mặt";
+                }
+                else if (leave != null)
+                {
+                    // 📋 KHÔNG có chấm công, NHƯNG CÓ đơn nghỉ phép → "Nghỉ có phép"
+                    dto.CheckInTime = "--:--";
+                    dto.CheckOutTime = "--:--";
+                    dto.LateMinutes = 0;
+                    dto.EarlyLeaveMinutes = 0;
+                    dto.AttendanceStatus = "Nghỉ có phép";
+                }
+                else
+                {
+                    // ❌ KHÔNG có chấm công VÀ KHÔNG có đơn nghỉ → "Vắng mặt không phép"
+                    dto.CheckInTime = "--:--";
+                    dto.CheckOutTime = "--:--";
+                    dto.LateMinutes = 0;
+                    dto.EarlyLeaveMinutes = 0;
+                    dto.AttendanceStatus = "Vắng mặt không phép";
+                }
+
+                result.Add(dto);
             }
 
             return result.OrderBy(x => x.EmployeeCode).ToList();
@@ -353,6 +409,150 @@ namespace QuanLyNhanSu
                 throw new UserFriendlyException($"Nhân viên {userName} không có dữ liệu chấm công trong ngày {parsedDate:dd/MM/yyyy}");
 
             await _attendanceRepository.DeleteAsync(record);
+        }
+
+        // ==========================================
+        // 6. API BÁO CÁO TỔNG HỢP THEO THÁNG (CHỐT LƯƠNG)
+        // ==========================================
+        // 🔑 LOGIC: Duyệt từng ngày trong khoảng [fromDate → toDate], bỏ qua T7/CN.
+        //    Mỗi ngày thực hiện Left Join tương tự GetDailyReportAsync:
+        //    - Có check-in → cộng TotalWorkDays
+        //    - Có check-in nhưng KHÔNG có check-out → cộng TotalMissingCheckOuts (Nhiệm vụ 4)
+        //    - Không có check-in, có đơn nghỉ → cộng TotalLeaveDays
+        //    - Không có gì cả → cộng TotalAbsentDays
+        // ==========================================
+        [Authorize]
+        public async Task<List<MonthlyAttendanceDto>> GetMonthlyReportAsync(string fromDate, string toDate)
+        {
+            // Kiểm tra bảo mật
+            var currentUserId = CurrentUser.Id;
+            if (currentUserId == null)
+                throw new UserFriendlyException("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
+
+            // Chỉ Admin/SuperAdmin mới được xem báo cáo tháng (vì đây là báo cáo tổng hợp chốt lương)
+            var currentUserKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId);
+            bool isAdmin = currentUserKey != null && (currentUserKey.Role.ToLower() == "admin" || currentUserKey.Role.ToLower() == "superadmin");
+            if (!isAdmin)
+                throw new UserFriendlyException("Chỉ có Admin hoặc SuperAdmin mới có quyền xem báo cáo tổng hợp tháng!");
+
+            // Parse ngày
+            DateTime parsedFrom = DateTime.Now.Date.AddDays(-30);
+            DateTime parsedTo = DateTime.Now.Date;
+
+            if (!string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var f))
+                parsedFrom = f.Date;
+            if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var t))
+                parsedTo = t.Date;
+
+            // ==========================================
+            // BƯỚC 1: Lấy danh sách tất cả nhân viên
+            // ==========================================
+            var allUsers = await _userRepository.GetListAsync();
+            if (!allUsers.Any()) return new List<MonthlyAttendanceDto>();
+
+            var allUserIds = allUsers.Select(u => u.Id).ToList();
+
+            // ==========================================
+            // BƯỚC 2: Lấy toàn bộ dữ liệu chấm công trong khoảng thời gian
+            // ==========================================
+            var allRecords = await _attendanceRepository.GetListAsync(
+                x => allUserIds.Contains(x.UserId) && x.WorkDate >= parsedFrom && x.WorkDate <= parsedTo
+            );
+
+            // Lấy tất cả đơn nghỉ phép đã duyệt có giao nhau với khoảng thời gian
+            var allLeaves = await _leaveRequestRepository.GetListAsync(
+                x => allUserIds.Contains(x.UserId)
+                     && x.Status == "Approved"
+                     && x.StartDate.Date <= parsedTo
+                     && x.EndDate.Date >= parsedFrom
+            );
+
+            // Lấy UserKey (chi nhánh)
+            var userKeys = await _userKeyRepository.GetListAsync(x => allUserIds.Contains(x.UserId));
+            var userKeyDict = userKeys.GroupBy(x => x.UserId).ToDictionary(g => g.Key, g => g.First());
+
+            var branches = await _branchRepository.GetListAsync();
+            var branchDict = branches.ToDictionary(b => b.Id, b => b.Name);
+
+            // ==========================================
+            // BƯỚC 3: Tính danh sách ngày làm việc (loại T7, CN)
+            // ==========================================
+            var workingDays = new List<DateTime>();
+            for (var d = parsedFrom; d <= parsedTo; d = d.AddDays(1))
+            {
+                // Bỏ qua Thứ 7 (Saturday) và Chủ nhật (Sunday)
+                if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                {
+                    workingDays.Add(d);
+                }
+            }
+
+            // ==========================================
+            // BƯỚC 4: GOM NHÓM THEO TỪNG NHÂN VIÊN (GroupBy UserId)
+            //    Duyệt từng ngày làm việc → Left Join → Cộng dồn
+            // ==========================================
+            var result = new List<MonthlyAttendanceDto>();
+
+            foreach (var user in allUsers)
+            {
+                // Lọc riêng dữ liệu chấm công + nghỉ phép của nhân viên này
+                var userRecords = allRecords.Where(r => r.UserId == user.Id).ToList();
+                var userLeaves = allLeaves.Where(l => l.UserId == user.Id).ToList();
+
+                // Lấy chi nhánh
+                var key = userKeyDict.GetValueOrDefault(user.Id);
+                string branchName = "Không xác định";
+                if (key?.BranchId != null && branchDict.ContainsKey(key.BranchId.Value))
+                {
+                    branchName = branchDict[key.BranchId.Value];
+                }
+
+                var dto = new MonthlyAttendanceDto
+                {
+                    UserId = user.Id,
+                    FullName = user.Name ?? user.UserName ?? "Không rõ",
+                    BranchName = branchName
+                };
+
+                // Duyệt từng ngày làm việc trong khoảng thời gian
+                foreach (var day in workingDays)
+                {
+                    // Left Join: tìm bản ghi chấm công ngày này
+                    var record = userRecords.FirstOrDefault(r => r.WorkDate == day);
+
+                    // Left Join: tìm đơn nghỉ phép cho ngày này
+                    var leave = userLeaves.FirstOrDefault(l => day >= l.StartDate.Date && day <= l.EndDate.Date);
+
+                    if (record != null)
+                    {
+                        // ✅ CÓ check-in → cộng 1 ngày công
+                        dto.TotalWorkDays++;
+                        dto.TotalLateMinutes += record.LateMinutes;
+                        dto.TotalEarlyLeaveMinutes += record.EarlyLeaveMinutes;
+
+                        // 🔎 NHIỆM VỤ 4: Phát hiện quên Check-out
+                        // Nếu có CheckInTime nhưng CheckOutTime là null → quên check-out
+                        if (record.CheckInTime != null && record.CheckOutTime == null)
+                        {
+                            dto.TotalMissingCheckOuts++;
+                        }
+                    }
+                    else if (leave != null)
+                    {
+                        // 📋 Nghỉ có phép
+                        dto.TotalLeaveDays++;
+                    }
+                    else
+                    {
+                        // ❌ Vắng mặt không phép (không check-in, không có đơn nghỉ)
+                        dto.TotalAbsentDays++;
+                    }
+                }
+
+                result.Add(dto);
+            }
+
+            return result.OrderBy(x => x.FullName).ToList();
         }
     }
 }

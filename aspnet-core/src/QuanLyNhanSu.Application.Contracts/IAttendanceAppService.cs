@@ -21,5 +21,8 @@ namespace QuanLyNhanSu
 
         // 👉 THÊM DÒNG NÀY: API Xóa/Hủy chấm công dành cho Admin
         Task DeleteDailyAttendanceAsync(string userName, string date);
+
+        // 👉 API BÁO CÁO TỔNG HỢP THEO THÁNG (Dùng để chốt lương)
+        Task<List<MonthlyAttendanceDto>> GetMonthlyReportAsync(string fromDate, string toDate);
     }
 }

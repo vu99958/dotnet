@@ -111,6 +111,7 @@ namespace QuanLyNhanSu.DesktopClient
             dgvAttendance.Columns.Add("CheckOut", "Giờ Ra");
             dgvAttendance.Columns.Add("Late", "Đi Trễ (Phút)");
             dgvAttendance.Columns.Add("Early", "Về Sớm (Phút)");
+            dgvAttendance.Columns.Add("Status", "Trạng Thái");
 
             dgvAttendance.CellFormatting += DgvAttendance_CellFormatting;
 
@@ -129,12 +130,36 @@ namespace QuanLyNhanSu.DesktopClient
         }
         private void DgvAttendance_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.RowIndex >= 0 && (e.ColumnIndex == 4 || e.ColumnIndex == 5)) // Áp dụng cho cột Đi Trễ (4) và Về Sớm (5)
+            if (e.RowIndex >= 0 && (e.ColumnIndex == 5 || e.ColumnIndex == 6)) // Cột Đi Trễ (5) và Về Sớm (6)
             {
                 // Nếu giá trị phút > 0 thì đổi màu chữ thành Đỏ và in Đậm
                 if (e.Value != null && int.TryParse(e.Value.ToString(), out int minutes) && minutes > 0)
                 {
                     e.CellStyle.ForeColor = Color.Red;
+                    e.CellStyle.Font = new Font(e.CellStyle.Font ?? new Font("Segoe UI", 10F), FontStyle.Bold);
+                }
+            }
+
+            // Tô màu cột Trạng Thái (cột index 7)
+            if (e.RowIndex >= 0 && e.ColumnIndex == 7 && e.Value != null)
+            {
+                string status = e.Value.ToString() ?? "";
+                if (status == "Vắng mặt không phép")
+                {
+                    e.CellStyle.ForeColor = Color.White;
+                    e.CellStyle.BackColor = Color.FromArgb(220, 53, 69); // Đỏ nền
+                    e.CellStyle.Font = new Font(e.CellStyle.Font ?? new Font("Segoe UI", 10F), FontStyle.Bold);
+                }
+                else if (status == "Nghỉ có phép")
+                {
+                    e.CellStyle.ForeColor = Color.White;
+                    e.CellStyle.BackColor = Color.FromArgb(255, 165, 0); // Cam nền
+                    e.CellStyle.Font = new Font(e.CellStyle.Font ?? new Font("Segoe UI", 10F), FontStyle.Bold);
+                }
+                else if (status == "Có mặt")
+                {
+                    e.CellStyle.ForeColor = Color.White;
+                    e.CellStyle.BackColor = Color.FromArgb(32, 161, 68); // Xanh lá nền
                     e.CellStyle.Font = new Font(e.CellStyle.Font ?? new Font("Segoe UI", 10F), FontStyle.Bold);
                 }
             }
@@ -176,7 +201,8 @@ namespace QuanLyNhanSu.DesktopClient
                                     row.GetProperty("checkInTime").GetString() ?? "--:--",
                                     row.GetProperty("checkOutTime").GetString() ?? "--:--",
                                     row.GetProperty("lateMinutes").GetInt32().ToString(),
-                                    row.GetProperty("earlyLeaveMinutes").GetInt32().ToString()
+                                    row.GetProperty("earlyLeaveMinutes").GetInt32().ToString(),
+                                    row.TryGetProperty("attendanceStatus", out var st) && st.ValueKind == JsonValueKind.String ? st.GetString() : "Có mặt"
                                 );
                             }
                         }
@@ -242,13 +268,16 @@ namespace QuanLyNhanSu.DesktopClient
                     client.BaseAddress = new Uri("https://localhost:44387/");
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
 
-                    // Khi check-in, gửi kèm tọa độ giả lập (gần công ty Vĩnh Long)
                     HttpResponseMessage response;
                     if (action == "check-in")
                     {
-                        double userLat = 10.2540;
-                        double userLng = 105.9720;
-                        
+                        // ==========================================
+                        // 🔒 BẢO MẬT: KHÔNG còn tọa độ fallback cứng.
+                        // Nếu không lấy được GPS → CHẶN check-in ngay lập tức.
+                        // ==========================================
+                        double? userLat = null;
+                        double? userLng = null;
+
                         try
                         {
                             var accessStatus = await Windows.Devices.Geolocation.Geolocator.RequestAccessAsync();
@@ -261,16 +290,33 @@ namespace QuanLyNhanSu.DesktopClient
                             }
                             else
                             {
-                                MessageBox.Show("Không có quyền truy cập GPS. Hệ thống sẽ không thể lấy vị trí hiện tại!", "Cảnh Báo GPS", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                // Người dùng từ chối cấp quyền GPS → CHẶN
+                                MessageBox.Show(
+                                    "Không thể lấy được vị trí GPS. Vui lòng kiểm tra lại kết nối mạng hoặc bật Location trên thiết bị để điểm danh!",
+                                    "Lỗi xác thực vị trí", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception gpsEx)
                         {
-                            MessageBox.Show("Lỗi lấy tọa độ GPS: " + ex.Message, "Cảnh Báo GPS", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            // Thiết bị không có chip GPS hoặc lỗi hệ thống → CHẶN
+                            MessageBox.Show(
+                                "Không thể lấy được vị trí GPS. Vui lòng kiểm tra lại kết nối mạng hoặc bật Location trên thiết bị để điểm danh!\n\nChi tiết lỗi: " + gpsEx.Message,
+                                "Lỗi xác thực vị trí", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
                         }
 
-                        string latStr = userLat.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                        string lngStr = userLng.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        // 🔒 KIỂM TRA LẦN CUỐI: Tọa độ phải hợp lệ (không null, không bằng 0)
+                        if (userLat == null || userLng == null || (userLat == 0 && userLng == 0))
+                        {
+                            MessageBox.Show(
+                                "Không thể lấy được vị trí GPS. Vui lòng kiểm tra lại kết nối mạng hoặc bật Location trên thiết bị để điểm danh!",
+                                "Lỗi xác thực vị trí", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        string latStr = userLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        string lngStr = userLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
                         response = await client.PostAsync(
                             $"/api/app/attendance/check-in?userLat={latStr}&userLng={lngStr}", null);

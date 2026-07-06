@@ -18,5 +18,10 @@ namespace QuanLyNhanSu
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public string? BranchName { get; set; }
+
+        /// <summary>
+        /// Trạng thái tổng hợp: "Có mặt", "Nghỉ có phép", "Vắng mặt không phép"
+        /// </summary>
+        public string AttendanceStatus { get; set; } = "Có mặt";
     }
 }
