@@ -14,7 +14,7 @@ namespace QuanLyNhanSu
     /// <summary>
     /// Service quản lý chi nhánh — CRUD đầy đủ
     /// </summary>
-    [Authorize(QuanLyNhanSuPermissions.Branch.Default)]
+    [Authorize]
     public class BranchAppService : QuanLyNhanSuAppService, IBranchAppService
     {
         private readonly IRepository<Branch, Guid> _branchRepository;

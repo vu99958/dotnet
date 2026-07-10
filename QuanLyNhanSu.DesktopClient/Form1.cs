@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -214,40 +215,27 @@ namespace QuanLyNhanSu.DesktopClient
             lblLogMessage.Text = "Đang kiểm tra CSDL..."; lblLogMessage.ForeColor = Color.Blue; btnLogin.Enabled = false;
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-
-                using (HttpClient client = new HttpClient(handler))
+                // LƯỢT 1: LẤY TOKEN ĐỂ CHỨNG MINH ĐĂNG NHẬP THÀNH CÔNG
+                var parameters = new Dictionary<string, string> { 
+                     { "grant_type", "password" }, 
+                     { "username", txtLogUsername.Text }, 
+                     { "password", txtLogPassword.Text }, 
+                     { "client_id", "QuanLyNhanSu_Swagger" },
+                     { "scope", "QuanLyNhanSu offline_access profile roles email" } 
+                };
+                var content = new FormUrlEncodedContent(parameters);
+                
+                HttpResponseMessage response = await ApiClient.PostAsync("connect/token", content);
+                
+                if (response.IsSuccessStatusCode)
                 {
-                    // LƯỢT 1: LẤY TOKEN ĐỂ CHỨNG MINH ĐĂNG NHẬP THÀNH CÔNG
-                    client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-
-                    var parameters = new Dictionary<string, string> { 
-                         { "grant_type", "password" }, 
-                         { "username", txtLogUsername.Text }, 
-                         { "password", txtLogPassword.Text }, 
-                         { "client_id", "QuanLyNhanSu_Swagger" },
-                         { "scope", "QuanLyNhanSu offline_access profile roles email" } 
-                    };
-                    var content = new FormUrlEncodedContent(parameters);
+                    var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                    userToken = data.GetProperty("access_token").GetString() ?? "";
                     
-                    HttpResponseMessage response = await client.PostAsync("https://localhost:44387/connect/token", content);
-                    
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
-                        userToken = data.GetProperty("access_token").GetString() ?? "";
-                        
-                        lblLogMessage.Text = "Xác thực thành công! Đang kiểm tra phân quyền..."; 
+                    lblLogMessage.Text = "Xác thực thành công! Đang kiểm tra phân quyền..."; 
 
-                        // LƯỢT 2: CHỐT CHẶN LOGIC - KIỂM TRA ĐÃ CÓ KEY CHƯA
-                        using (HttpClient apiClient = new HttpClient(handler))
-                        {
-                            apiClient.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-                            apiClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
-
-                            // Gọi API lấy danh sách Key của chính user này
-                            HttpResponseMessage keyResponse = await apiClient.GetAsync("https://localhost:44387/api/app/user-key/user-keys");
+                    // LƯỢT 2: CHỐT CHẶN LOGIC - KIỂM TRA ĐÃ CÓ KEY CHƯA
+                    HttpResponseMessage keyResponse = await ApiClient.GetAsync("api/app/user-key/user-keys", userToken);
                             
                             if (keyResponse.IsSuccessStatusCode)
                             {
@@ -278,7 +266,6 @@ namespace QuanLyNhanSu.DesktopClient
                             {
                                 lblLogMessage.Text = "Lỗi khi kiểm tra phân quyền!"; lblLogMessage.ForeColor = Color.Red;
                             }
-                        }
                     }
                     else
                     {
@@ -286,7 +273,6 @@ namespace QuanLyNhanSu.DesktopClient
                         lblLogMessage.Text = $"Từ chối ({response.StatusCode})! Sai tài khoản/mật khẩu."; 
                         lblLogMessage.ForeColor = Color.Red;
                     }
-                }
             }
             catch (Exception ex) { 
                 lblLogMessage.Text = "Lỗi kết nối tới Server."; lblLogMessage.ForeColor = Color.Red; 
@@ -300,40 +286,32 @@ namespace QuanLyNhanSu.DesktopClient
             lblRegMessage.Text = "Đang ghi dữ liệu vào SQL..."; lblRegMessage.ForeColor = Color.Blue; btnRegister.Enabled = false;
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-
-                using (HttpClient client = new HttpClient(handler))
+                string apiUrl = "api/account/register";
+                
+                var payload = new {
+                    appName = "QuanLyNhanSu_Web",
+                    userName = txtRegUsername.Text,
+                    emailAddress = txtRegEmail.Text,
+                    password = txtRegPassword.Text
+                };
+                
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                HttpResponseMessage response = await ApiClient.PostAsync(apiUrl, content);
+                
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-
-                    string apiUrl = "https://localhost:44387/api/account/register";
+                    lblRegMessage.Text = "Đăng ký thành công! Đã Commit."; lblRegMessage.ForeColor = Color.Green;
+                    MessageBox.Show("Tạo tài khoản thành công!\nMời bạn quay lại màn hình Đăng Nhập.", "Hệ thống");
                     
-                    var payload = new {
-                        appName = "QuanLyNhanSu_Web",
-                        userName = txtRegUsername.Text,
-                        emailAddress = txtRegEmail.Text,
-                        password = txtRegPassword.Text
-                    };
-                    
-                    var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-                    HttpResponseMessage response = await client.PostAsync(apiUrl, content);
-                    
-                    if (response.IsSuccessStatusCode)
-                    {
-                        lblRegMessage.Text = "Đăng ký thành công! Đã Commit."; lblRegMessage.ForeColor = Color.Green;
-                        MessageBox.Show("Tạo tài khoản thành công!\nMời bạn quay lại màn hình Đăng Nhập.", "Hệ thống");
-                        
-                        txtLogUsername.Text = txtRegUsername.Text;
-                        pnlRegister.Visible = false; pnlLogin.Visible = true; 
-                    }
-                    else
-                    {
-                        string errorResponse = await response.Content.ReadAsStringAsync();
-                        lblRegMessage.Text = $"Rollback ({response.StatusCode})! Xem chi tiết ở hộp thoại."; 
-                        lblRegMessage.ForeColor = Color.Red;
-                        MessageBox.Show("Nguyên nhân Backend Rollback:\n" + errorResponse, "Bắt mạch lỗi");
-                    }
+                    txtLogUsername.Text = txtRegUsername.Text;
+                    pnlRegister.Visible = false; pnlLogin.Visible = true; 
+                }
+                else
+                {
+                    string errorResponse = await response.Content.ReadAsStringAsync();
+                    lblRegMessage.Text = $"Rollback ({response.StatusCode})! Xem chi tiết ở hộp thoại."; 
+                    lblRegMessage.ForeColor = Color.Red;
+                    MessageBox.Show("Nguyên nhân Backend Rollback:\n" + errorResponse, "Bắt mạch lỗi");
                 }
             }
             catch (Exception ex) { 
@@ -351,56 +329,47 @@ namespace QuanLyNhanSu.DesktopClient
             lblCreateKeyMessage.Text = "Đang tạo Key..."; lblCreateKeyMessage.ForeColor = Color.Blue; btnCreateKey.Enabled = false;
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                var payload = new {
+                    role = cmbRole.SelectedItem?.ToString() ?? "user",
+                    description = string.IsNullOrEmpty(txtKeyDesc.Text) ? null : txtKeyDesc.Text,
+                    expirationDate = (DateTime?)null
+                };
 
-                using (HttpClient client = new HttpClient(handler))
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                HttpResponseMessage response = await ApiClient.PostAsync("api/UserKey/create", content, userToken);
+
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
-
-                    var payload = new {
-                        role = cmbRole.SelectedItem?.ToString() ?? "user",
-                        description = string.IsNullOrEmpty(txtKeyDesc.Text) ? null : txtKeyDesc.Text,
-                        expirationDate = (DateTime?)null
-                    };
-
-                    var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-                  HttpResponseMessage response = await client.PostAsync("https://localhost:44387/api/UserKey/create", content);
-
-                    if (response.IsSuccessStatusCode)
+                    var responseData = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                    
+                    if (responseData.GetProperty("success").GetBoolean())
                     {
-                        var responseData = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                        var keyData = responseData.GetProperty("data");
+                        string generatedKey = keyData.GetProperty("key").GetString() ?? "";
                         
-                        if (responseData.GetProperty("success").GetBoolean())
-                        {
-                            var keyData = responseData.GetProperty("data");
-                            string generatedKey = keyData.GetProperty("key").GetString() ?? "";
-                            
-                            lblCreateKeyMessage.Text = "✓ Tạo Key thành công! Hãy lưu Key này ở chỗ an toàn."; 
-                            lblCreateKeyMessage.ForeColor = Color.Green;
-                            
-                            lblKeyDisplay.Text = generatedKey;
-                            lblKeyDisplay.ForeColor = Color.Green;
-                            
-                            // Lưu key vào file
-                            SaveKeyToFile(generatedKey);
-                            
-                            MessageBox.Show($"Key của bạn:\n{generatedKey}\n\nHãy lưu Key này để đăng nhập lần tới.", "Key tạo thành công");
-                        }
-                        else
-                        {
-                            lblCreateKeyMessage.Text = $"✗ Lỗi: {responseData.GetProperty("error").GetString()}";
-                            lblCreateKeyMessage.ForeColor = Color.Red;
-                        }
+                        lblCreateKeyMessage.Text = "✓ Tạo Key thành công! Hãy lưu Key này ở chỗ an toàn."; 
+                        lblCreateKeyMessage.ForeColor = Color.Green;
+                        
+                        lblKeyDisplay.Text = generatedKey;
+                        lblKeyDisplay.ForeColor = Color.Green;
+                        
+                        // Lưu key vào file
+                        SaveKeyToFile(generatedKey);
+                        
+                        MessageBox.Show($"Key của bạn:\n{generatedKey}\n\nHãy lưu Key này để đăng nhập lần tới.", "Key tạo thành công");
                     }
                     else
                     {
-                        string errorResponse = await response.Content.ReadAsStringAsync();
-                        lblCreateKeyMessage.Text = $"✗ Rollback ({response.StatusCode})! Xem chi tiết ở hộp thoại."; 
+                        lblCreateKeyMessage.Text = $"✗ Lỗi: {responseData.GetProperty("error").GetString()}";
                         lblCreateKeyMessage.ForeColor = Color.Red;
-                        MessageBox.Show("Chi tiết lỗi từ máy chủ:\n" + errorResponse, "Bắt mạch lỗi");
                     }
+                }
+                else
+                {
+                    string errorResponse = await response.Content.ReadAsStringAsync();
+                    lblCreateKeyMessage.Text = $"✗ Rollback ({response.StatusCode})! Xem chi tiết ở hộp thoại."; 
+                    lblCreateKeyMessage.ForeColor = Color.Red;
+                    MessageBox.Show("Chi tiết lỗi từ máy chủ:\n" + errorResponse, "Bắt mạch lỗi");
                 }
             }
             catch (Exception ex)
@@ -420,58 +389,50 @@ namespace QuanLyNhanSu.DesktopClient
             lblKeyLoginMessage.Text = "Đang xác minh Key..."; lblKeyLoginMessage.ForeColor = Color.Blue; btnKeyLogin.Enabled = false;
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                var payload = new { key = txtLoginKey.Text };
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                
+                HttpResponseMessage response = await ApiClient.PostAsync("api/userkey/verify", content);
 
-                using (HttpClient client = new HttpClient(handler))
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-
-                    var payload = new { key = txtLoginKey.Text };
-                    var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                    var responseData = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
                     
-                    HttpResponseMessage response = await client.PostAsync("https://localhost:44387/api/userkey/verify", content);
-
-                    if (response.IsSuccessStatusCode)
+                    if (responseData.GetProperty("success").GetBoolean())
                     {
-                        var responseData = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                        var keyData = responseData.GetProperty("data");
+                        string role = keyData.GetProperty("role").GetString() ?? "user";
+                        Guid userId = Guid.Parse(keyData.GetProperty("userId").GetString() ?? "");
                         
-                        if (responseData.GetProperty("success").GetBoolean())
-                        {
-                            var keyData = responseData.GetProperty("data");
-                            string role = keyData.GetProperty("role").GetString() ?? "user";
-                            Guid userId = Guid.Parse(keyData.GetProperty("userId").GetString() ?? "");
-                            
-                            lblKeyLoginMessage.Text = "✓ Key hợp lệ! Đăng nhập thành công!"; 
-                            lblKeyLoginMessage.ForeColor = Color.Green;
-                            
-                            // Lưu key vào file
-                            SaveKeyToFile(txtLoginKey.Text);
-                            
-                            MessageBox.Show($"Đăng nhập thành công!\nVai trò: {role}\nUser ID: {userId}", "Hệ thống");
-                            
-                            // Có thể chuyển sang Dashboard hoặc screen khác
-                            // MessageBox.Show("Chuyển hướng tới Dashboard...");
-                            // Ẩn Form đăng nhập hiện tại
-                            this.Hide(); 
+                        lblKeyLoginMessage.Text = "✓ Key hợp lệ! Đăng nhập thành công!"; 
+                        lblKeyLoginMessage.ForeColor = Color.Green;
+                        
+                        // Lưu key vào file
+                        SaveKeyToFile(txtLoginKey.Text);
+                        
+                        MessageBox.Show($"Đăng nhập thành công!\nVai trò: {role}\nUser ID: {userId}", "Hệ thống");
+                        
+                        // Có thể chuyển sang Dashboard hoặc screen khác
+                        // MessageBox.Show("Chuyển hướng tới Dashboard...");
+                        // Ẩn Form đăng nhập hiện tại
+                        this.Hide(); 
 
-                        // Tạo và mở Form Dashboard, nhớ truyền token (hoặc key) qua
-                            FormDashboard dashboard = new FormDashboard(userToken); 
-                                dashboard.Show();
-                        }
-                        else
-                        {
-                            lblKeyLoginMessage.Text = $"✗ Key không hợp lệ hoặc đã hết hạn!"; 
-                            lblKeyLoginMessage.ForeColor = Color.Red;
-                        }
+                    // Tạo và mở Form Dashboard, nhớ truyền token (hoặc key) qua
+                        FormDashboard dashboard = new FormDashboard(userToken); 
+                            dashboard.Show();
                     }
                     else
                     {
-                        string errorResponse = await response.Content.ReadAsStringAsync();
-                        lblKeyLoginMessage.Text = $"✗ Lỗi ({response.StatusCode})! Xem chi tiết ở hộp thoại."; 
+                        lblKeyLoginMessage.Text = $"✗ Key không hợp lệ hoặc đã hết hạn!"; 
                         lblKeyLoginMessage.ForeColor = Color.Red;
-                        MessageBox.Show("Chi tiết lỗi từ máy chủ:\n" + errorResponse, "Bắt mạch lỗi");
                     }
+                }
+                else
+                {
+                    string errorResponse = await response.Content.ReadAsStringAsync();
+                    lblKeyLoginMessage.Text = $"✗ Lỗi ({response.StatusCode})! Xem chi tiết ở hộp thoại."; 
+                    lblKeyLoginMessage.ForeColor = Color.Red;
+                    MessageBox.Show("Chi tiết lỗi từ máy chủ:\n" + errorResponse, "Bắt mạch lỗi");
                 }
             }
             catch (Exception ex)

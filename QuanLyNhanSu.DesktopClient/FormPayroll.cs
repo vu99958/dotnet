@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -125,65 +126,58 @@ namespace QuanLyNhanSu.DesktopClient
 
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                using (HttpClient client = new HttpClient(handler))
+                var response = await ApiClient.GetAsync($"api/app/payslip?month={month}&year={year}", _userToken);
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                    // Dựa trên convention của ABP, AppService có GetListAsync(int month, int year)
-                    HttpResponseMessage response = await client.GetAsync($"https://localhost:44387/api/app/payslip?month={month}&year={year}");
-                    if (response.IsSuccessStatusCode)
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    using (JsonDocument doc = JsonDocument.Parse(jsonString))
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        using (JsonDocument doc = JsonDocument.Parse(jsonString))
+                        var root = doc.RootElement;
+                        
+                        if (root.ValueKind == JsonValueKind.Array)
                         {
-                            var root = doc.RootElement;
-                            
-                            if (root.ValueKind == JsonValueKind.Array)
+                            dgvPayslips.Rows.Clear();
+                            foreach (var item in root.EnumerateArray())
                             {
-                                dgvPayslips.Rows.Clear();
-                                foreach (var item in root.EnumerateArray())
-                                {
-                                    dgvPayslips.Rows.Add(
-                                        item.GetProperty("id").GetString(),
-                                        item.GetProperty("userName").GetString(),
-                                        item.GetProperty("standardWorkDays").GetInt32(),
-                                        item.GetProperty("actualWorkDays").GetInt32(),
-                                        item.GetProperty("approvedLeaveDays").GetInt32(),
-                                        item.GetProperty("overtimeDays").GetInt32(),
-                                        item.GetProperty("overtimePay").GetDecimal(),
-                                        item.GetProperty("totalPenalty").GetDecimal(),
-                                        item.GetProperty("grossSalary").GetDecimal(),
-                                        item.GetProperty("netSalary").GetDecimal()
-                                    );
-                                }
+                                dgvPayslips.Rows.Add(
+                                    item.GetProperty("id").GetString(),
+                                    item.GetProperty("userName").GetString(),
+                                    item.GetProperty("standardWorkDays").GetInt32(),
+                                    item.GetProperty("actualWorkDays").GetInt32(),
+                                    item.GetProperty("approvedLeaveDays").GetInt32(),
+                                    item.GetProperty("overtimeDays").GetInt32(),
+                                    item.GetProperty("overtimePay").GetDecimal(),
+                                    item.GetProperty("totalPenalty").GetDecimal(),
+                                    item.GetProperty("grossSalary").GetDecimal(),
+                                    item.GetProperty("netSalary").GetDecimal()
+                                );
                             }
-                            else if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out JsonElement items))
+                        }
+                        else if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out JsonElement items))
+                        {
+                            dgvPayslips.Rows.Clear();
+                            foreach (var item in items.EnumerateArray())
                             {
-                                dgvPayslips.Rows.Clear();
-                                foreach (var item in items.EnumerateArray())
-                                {
-                                    dgvPayslips.Rows.Add(
-                                        item.GetProperty("id").GetString(),
-                                        item.GetProperty("userName").GetString(),
-                                        item.GetProperty("standardWorkDays").GetInt32(),
-                                        item.GetProperty("actualWorkDays").GetInt32(),
-                                        item.GetProperty("approvedLeaveDays").GetInt32(),
-                                        item.GetProperty("overtimeDays").GetInt32(),
-                                        item.GetProperty("overtimePay").GetDecimal(),
-                                        item.GetProperty("totalPenalty").GetDecimal(),
-                                        item.GetProperty("grossSalary").GetDecimal(),
-                                        item.GetProperty("netSalary").GetDecimal()
-                                    );
-                                }
+                                dgvPayslips.Rows.Add(
+                                    item.GetProperty("id").GetString(),
+                                    item.GetProperty("userName").GetString(),
+                                    item.GetProperty("standardWorkDays").GetInt32(),
+                                    item.GetProperty("actualWorkDays").GetInt32(),
+                                    item.GetProperty("approvedLeaveDays").GetInt32(),
+                                    item.GetProperty("overtimeDays").GetInt32(),
+                                    item.GetProperty("overtimePay").GetDecimal(),
+                                    item.GetProperty("totalPenalty").GetDecimal(),
+                                    item.GetProperty("grossSalary").GetDecimal(),
+                                    item.GetProperty("netSalary").GetDecimal()
+                                );
                             }
                         }
                     }
-                    else
-                    {
-                        var msg = await response.Content.ReadAsStringAsync();
-                        MessageBox.Show("Lỗi tải dữ liệu: " + msg, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                }
+                else
+                {
+                    var msg = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show("Lỗi tải dữ liệu: " + msg, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
@@ -202,24 +196,17 @@ namespace QuanLyNhanSu.DesktopClient
 
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (s, cert, chain, sslPolicyErrors) => true;
-                using (HttpClient client = new HttpClient(handler))
+                var content = new StringContent("", Encoding.UTF8, "application/json");
+                HttpResponseMessage response = await ApiClient.PostAsync($"api/app/payslip/generate-monthly-payroll?month={month}&year={year}", content, _userToken);
+                
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                    
-                    var content = new StringContent("", Encoding.UTF8, "application/json");
-                    HttpResponseMessage response = await client.PostAsync($"https://localhost:44387/api/app/payslip/generate-monthly-payroll?month={month}&year={year}", content);
-                    
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show($"Đã chốt lương tháng {month}/{year} thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        await LoadDataAsync();
-                    }
-                    else
-                    {
-                        MessageBox.Show("Lỗi: " + await response.Content.ReadAsStringAsync());
-                    }
+                    MessageBox.Show($"Đã chốt lương tháng {month}/{year} thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadDataAsync();
+                }
+                else
+                {
+                    MessageBox.Show("Lỗi: " + await response.Content.ReadAsStringAsync());
                 }
             }
             catch (Exception ex)

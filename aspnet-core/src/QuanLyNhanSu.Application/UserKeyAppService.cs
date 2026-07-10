@@ -17,7 +17,7 @@ namespace QuanLyNhanSu.Application;
 /// <summary>
 /// Application Service quản lý User Key
 /// </summary>
-[Authorize(QuanLyNhanSuPermissions.UserKey.Default)]
+[Authorize]
 public class UserKeyAppService : ApplicationService, ITransientDependency
 {
     private readonly IRepository<UserKey, Guid> _userKeyRepository;
@@ -135,6 +135,7 @@ public class UserKeyAppService : ApplicationService, ITransientDependency
     /// <summary>
     /// Xác minh key hợp lệ
     /// </summary>
+    [AllowAnonymous]
     public virtual async Task<UserKeyResultDto?> VerifyKeyAsync(string key)
     {
         var userKey = await _userKeyRepository.FirstOrDefaultAsync(x => 

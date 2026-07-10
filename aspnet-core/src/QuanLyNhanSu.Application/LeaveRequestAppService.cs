@@ -13,7 +13,7 @@ using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
-    [Authorize(QuanLyNhanSuPermissions.LeaveRequest.Default)]
+    [Authorize]
     public class LeaveRequestAppService :
         CrudAppService<
             LeaveRequest, 

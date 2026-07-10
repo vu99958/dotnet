@@ -13,7 +13,7 @@ using QuanLyNhanSu.Services;
 
 namespace QuanLyNhanSu
 {
-    [Authorize(QuanLyNhanSuPermissions.Attendance.Default)]
+    [Authorize]
     public class AttendanceAppService : QuanLyNhanSuAppService, IAttendanceAppService
     {
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;

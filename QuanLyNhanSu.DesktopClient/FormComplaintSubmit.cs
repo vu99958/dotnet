@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -59,34 +60,27 @@ namespace QuanLyNhanSu.DesktopClient
 
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; };
-                using (HttpClient client = new HttpClient(handler))
+                var payload = new
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
+                    payslipId = _payslipId,
+                    month = _month,
+                    year = _year,
+                    reason = txtReason.Text
+                };
 
-                    var payload = new
-                    {
-                        payslipId = _payslipId,
-                        month = _month,
-                        year = _year,
-                        reason = txtReason.Text
-                    };
+                var json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    var json = JsonSerializer.Serialize(payload);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                HttpResponseMessage response = await ApiClient.PostAsync("api/app/payslip-complaint", content, _userToken);
 
-                    HttpResponseMessage response = await client.PostAsync("https://localhost:44387/api/app/payslip-complaint", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Gửi khiếu nại thành công! Admin sẽ xem xét và phản hồi.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        this.Close();
-                    }
-                    else
-                    {
-                        MessageBox.Show("Lỗi khi gửi khiếu nại: " + response.StatusCode, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                if (response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Gửi khiếu nại thành công! Admin sẽ xem xét và phản hồi.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Lỗi khi gửi khiếu nại: " + response.StatusCode, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)

@@ -12,7 +12,7 @@ using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
-    [Authorize(QuanLyNhanSuPermissions.Employee.Default)] 
+    [Authorize] 
     public class EmployeeAppService : QuanLyNhanSuAppService
     {
         private readonly IdentityUserManager _userManager;

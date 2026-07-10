@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -90,34 +91,28 @@ namespace QuanLyNhanSu.DesktopClient
                 string jsonString = JsonSerializer.Serialize(payload);
                 var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
 
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                using (HttpClient client = new HttpClient(handler))
+                HttpResponseMessage response;
+                
+                if (_editId != null)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                    HttpResponseMessage response;
-                    
-                    if (_editId != null)
-                    {
-                        // Sửa đơn: Dùng PUT
-                        response = await client.PutAsync($"https://localhost:44387/api/app/leave-request/{_editId}", content);
-                    }
-                    else
-                    {
-                        // Tạo đơn: Dùng POST
-                        response = await client.PostAsync("https://localhost:44387/api/app/leave-request", content);
-                    }
+                    // Sửa đơn: Dùng PUT
+                    response = await ApiClient.PutAsync($"api/app/leave-request/{_editId}", content, _userToken);
+                }
+                else
+                {
+                    // Tạo đơn: Dùng POST
+                    response = await ApiClient.PostAsync("api/app/leave-request", content, _userToken);
+                }
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show(_editId != null ? "Cập nhật đơn nghỉ phép thành công!" : "Tạo đơn nghỉ phép thành công!");
-                        this.DialogResult = DialogResult.OK;
-                        this.Close();
-                    }
-                    else
-                    {
-                        MessageBox.Show("Lỗi máy chủ: " + await response.Content.ReadAsStringAsync());
-                    }
+                if (response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show(_editId != null ? "Cập nhật đơn nghỉ phép thành công!" : "Tạo đơn nghỉ phép thành công!");
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Lỗi máy chủ: " + await response.Content.ReadAsStringAsync());
                 }
             }
             catch (Exception ex)

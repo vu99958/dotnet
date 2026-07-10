@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -73,38 +74,31 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; };
-                using (HttpClient client = new HttpClient(handler))
+                HttpResponseMessage response = await ApiClient.GetAsync("api/app/payslip-complaint/pending-list", _userToken);
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-
-                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/payslip-complaint/pending-list");
-                    if (response.IsSuccessStatusCode)
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    using (JsonDocument doc = JsonDocument.Parse(jsonString))
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        using (JsonDocument doc = JsonDocument.Parse(jsonString))
-                        {
-                            var root = doc.RootElement;
-                            dgvComplaints.Rows.Clear();
-                            
-                            JsonElement items;
-                            if (root.ValueKind == JsonValueKind.Array) items = root;
-                            else if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out var i)) items = i;
-                            else return;
+                        var root = doc.RootElement;
+                        dgvComplaints.Rows.Clear();
+                        
+                        JsonElement items;
+                        if (root.ValueKind == JsonValueKind.Array) items = root;
+                        else if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out var i)) items = i;
+                        else return;
 
-                            foreach (var item in items.EnumerateArray())
-                            {
-                                dgvComplaints.Rows.Add(
-                                    item.GetProperty("id").GetString(),
-                                    item.GetProperty("userName").GetString(),
-                                    item.GetProperty("month").GetInt32(),
-                                    item.GetProperty("year").GetInt32(),
-                                    item.GetProperty("reason").GetString(),
-                                    item.GetProperty("status").GetString(),
-                                    item.GetProperty("creationTime").GetDateTime().ToString("dd/MM/yyyy HH:mm")
-                                );
-                            }
+                        foreach (var item in items.EnumerateArray())
+                        {
+                            dgvComplaints.Rows.Add(
+                                item.GetProperty("id").GetString(),
+                                item.GetProperty("userName").GetString(),
+                                item.GetProperty("month").GetInt32(),
+                                item.GetProperty("year").GetInt32(),
+                                item.GetProperty("reason").GetString(),
+                                item.GetProperty("status").GetString(),
+                                item.GetProperty("creationTime").GetDateTime().ToString("dd/MM/yyyy HH:mm")
+                            );
                         }
                     }
                 }
@@ -133,33 +127,26 @@ namespace QuanLyNhanSu.DesktopClient
 
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; };
-                using (HttpClient client = new HttpClient(handler))
+                var payload = new
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
+                    status = newStatus,
+                    adminReply = txtReply.Text
+                };
+                var json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    var payload = new
-                    {
-                        status = newStatus,
-                        adminReply = txtReply.Text
-                    };
-                    var json = JsonSerializer.Serialize(payload);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                // Chú ý: url put có dạng /api/app/payslip-complaint/{id}/resolve
+                HttpResponseMessage response = await ApiClient.PutAsync($"api/app/payslip-complaint/{id}/resolve", content, _userToken);
 
-                    // Chú ý: url put có dạng /api/app/payslip-complaint/{id}/resolve
-                    HttpResponseMessage response = await client.PutAsync($"https://localhost:44387/api/app/payslip-complaint/{id}/resolve", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Xử lý thành công!");
-                        txtReply.Text = "";
-                        await LoadDataAsync(); // Tải lại danh sách
-                    }
-                    else
-                    {
-                        MessageBox.Show("Lỗi xử lý: " + response.StatusCode);
-                    }
+                if (response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Xử lý thành công!");
+                    txtReply.Text = "";
+                    await LoadDataAsync(); // Tải lại danh sách
+                }
+                else
+                {
+                    MessageBox.Show("Lỗi xử lý: " + response.StatusCode);
                 }
             }
             catch (Exception ex)

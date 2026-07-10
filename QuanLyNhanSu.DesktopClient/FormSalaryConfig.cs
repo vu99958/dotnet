@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -99,47 +100,41 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (s, cert, chain, ssl) => true;
-                using (HttpClient client = new HttpClient(handler))
+                var response = await ApiClient.GetAsync("api/app/salary-profile", _userToken);
+
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/salary-profile");
-
-                    if (response.IsSuccessStatusCode)
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    using (JsonDocument doc = JsonDocument.Parse(jsonString))
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        using (JsonDocument doc = JsonDocument.Parse(jsonString))
+                        var root = doc.RootElement;
+                        dgvProfiles.Rows.Clear();
+
+                        // Xử lý cả 2 dạng trả về: mảng trực tiếp hoặc object có key "items"
+                        JsonElement items = root;
+                        if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out JsonElement itemsProp))
                         {
-                            var root = doc.RootElement;
-                            dgvProfiles.Rows.Clear();
+                            items = itemsProp;
+                        }
 
-                            // Xử lý cả 2 dạng trả về: mảng trực tiếp hoặc object có key "items"
-                            JsonElement items = root;
-                            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out JsonElement itemsProp))
+                        if (items.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in items.EnumerateArray())
                             {
-                                items = itemsProp;
-                            }
-
-                            if (items.ValueKind == JsonValueKind.Array)
-                            {
-                                foreach (var item in items.EnumerateArray())
-                                {
-                                    dgvProfiles.Rows.Add(
-                                        item.GetProperty("userId").GetString(),
-                                        item.GetProperty("userName").GetString(),
-                                        item.GetProperty("position").GetString(),
-                                        item.GetProperty("baseSalary").GetDecimal(),
-                                        item.GetProperty("allowance").GetDecimal()
-                                    );
-                                }
+                                dgvProfiles.Rows.Add(
+                                    item.GetProperty("userId").GetString(),
+                                    item.GetProperty("userName").GetString(),
+                                    item.GetProperty("position").GetString(),
+                                    item.GetProperty("baseSalary").GetDecimal(),
+                                    item.GetProperty("allowance").GetDecimal()
+                                );
                             }
                         }
                     }
-                    else
-                    {
-                        MessageBox.Show("Lỗi tải dữ liệu: " + await response.Content.ReadAsStringAsync(), "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                }
+                else
+                {
+                    MessageBox.Show("Lỗi tải dữ liệu: " + await response.Content.ReadAsStringAsync(), "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
@@ -224,34 +219,27 @@ namespace QuanLyNhanSu.DesktopClient
                 // Gọi API lưu cấu hình
                 try
                 {
-                    HttpClientHandler handler = new HttpClientHandler();
-                    handler.ServerCertificateCustomValidationCallback = (ss, cert, chain, ssl) => true;
-                    using (HttpClient client = new HttpClient(handler))
+                    var payload = new
                     {
-                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
+                        userId = userId,
+                        position = cbPosition.Text,
+                        baseSalary = baseSalary,
+                        allowance = allowance
+                    };
+                    var json = JsonSerializer.Serialize(payload);
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                        var payload = new
-                        {
-                            userId = userId,
-                            position = cbPosition.Text,
-                            baseSalary = baseSalary,
-                            allowance = allowance
-                        };
-                        var json = JsonSerializer.Serialize(payload);
-                        var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    HttpResponseMessage response = await ApiClient.PostAsync("api/app/salary-profile/or-update", content, _userToken);
 
-                        HttpResponseMessage response = await client.PostAsync("https://localhost:44387/api/app/salary-profile/or-update", content);
-
-                        if (response.IsSuccessStatusCode)
-                        {
-                            MessageBox.Show($"Đã lưu cấu hình lương cho {userName}!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            dialog.Close();
-                            await LoadDataAsync(); // Reload danh sách
-                        }
-                        else
-                        {
-                            MessageBox.Show("Lỗi: " + await response.Content.ReadAsStringAsync(), "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
+                    if (response.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show($"Đã lưu cấu hình lương cho {userName}!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        dialog.Close();
+                        await LoadDataAsync(); // Reload danh sách
+                    }
+                    else
+                    {
+                        MessageBox.Show("Lỗi: " + await response.Content.ReadAsStringAsync(), "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
                 catch (Exception ex)

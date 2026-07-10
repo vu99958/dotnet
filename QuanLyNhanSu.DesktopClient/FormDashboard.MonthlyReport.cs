@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -282,49 +283,40 @@ namespace QuanLyNhanSu.DesktopClient
                 string fromDate = dtpFromDate.Value.ToString("yyyy-MM-dd");
                 string toDate = dtpToDate.Value.ToString("yyyy-MM-dd");
 
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                // Gọi API Backend: /api/app/attendance/monthly-report
+                var response = await ApiClient.GetAsync($"api/app/attendance/monthly-report?fromDate={fromDate}&toDate={toDate}", userToken);
 
-                using (var client = new HttpClient(handler))
+                if (response.IsSuccessStatusCode)
                 {
-                    client.BaseAddress = new Uri("https://localhost:44387/");
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-
-                    // Gọi API Backend: /api/app/attendance/monthly-report
-                    var response = await client.GetAsync($"/api/app/attendance/monthly-report?fromDate={fromDate}&toDate={toDate}");
-
-                    if (response.IsSuccessStatusCode)
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    using (JsonDocument doc = JsonDocument.Parse(jsonString))
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        using (JsonDocument doc = JsonDocument.Parse(jsonString))
+                        foreach (JsonElement row in doc.RootElement.EnumerateArray())
                         {
-                            foreach (JsonElement row in doc.RootElement.EnumerateArray())
-                            {
-                                dgvMonthlyReport.Rows.Add(
-                                    row.GetProperty("fullName").GetString() ?? "Không rõ",
-                                    row.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Không xác định",
-                                    row.GetProperty("totalWorkDays").GetInt32().ToString(),
-                                    row.GetProperty("totalLateMinutes").GetInt32().ToString(),
-                                    row.GetProperty("totalEarlyLeaveMinutes").GetInt32().ToString(),
-                                    row.GetProperty("totalAbsentDays").GetInt32().ToString(),
-                                    row.GetProperty("totalLeaveDays").GetInt32().ToString(),
-                                    row.GetProperty("totalMissingCheckOuts").GetInt32().ToString(),
-                                    row.GetProperty("userId").GetString() ?? ""
-                                );
-                            }
-                        }
-
-                        // Thông báo kết quả
-                        if (dgvMonthlyReport.Rows.Count == 0)
-                        {
-                            MessageBox.Show("Không có dữ liệu trong khoảng thời gian này.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            dgvMonthlyReport.Rows.Add(
+                                row.GetProperty("fullName").GetString() ?? "Không rõ",
+                                row.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Không xác định",
+                                row.GetProperty("totalWorkDays").GetInt32().ToString(),
+                                row.GetProperty("totalLateMinutes").GetInt32().ToString(),
+                                row.GetProperty("totalEarlyLeaveMinutes").GetInt32().ToString(),
+                                row.GetProperty("totalAbsentDays").GetInt32().ToString(),
+                                row.GetProperty("totalLeaveDays").GetInt32().ToString(),
+                                row.GetProperty("totalMissingCheckOuts").GetInt32().ToString(),
+                                row.GetProperty("userId").GetString() ?? ""
+                            );
                         }
                     }
-                    else
+
+                    // Thông báo kết quả
+                    if (dgvMonthlyReport.Rows.Count == 0)
                     {
-                        var error = await response.Content.ReadAsStringAsync();
-                        MessageBox.Show("Lỗi máy chủ: " + error, "Lỗi API", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("Không có dữ liệu trong khoảng thời gian này.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show("Lỗi máy chủ: " + error, "Lỗi API", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)

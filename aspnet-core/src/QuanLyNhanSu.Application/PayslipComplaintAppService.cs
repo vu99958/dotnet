@@ -11,7 +11,7 @@ using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
-    [Authorize(QuanLyNhanSuPermissions.PayslipComplaint.Default)]
+    [Authorize]
     public class PayslipComplaintAppService : QuanLyNhanSuAppService, IPayslipComplaintAppService
     {
         private readonly IRepository<PayslipComplaint, Guid> _complaintRepository;

@@ -2,9 +2,11 @@ using System;
 using System.Drawing;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -175,43 +177,34 @@ namespace QuanLyNhanSu.DesktopClient
                 btnRefreshData.Enabled = false;
                 dgvAttendance.Rows.Clear();
 
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-
-                using (var client = new HttpClient(handler))
+                // Gọi API lấy danh sách theo ngày (Cần viết thêm API này ở Backend)
+                string formattedDate = targetDate.ToString("yyyy-MM-dd");
+                var response = await ApiClient.GetAsync($"api/app/attendance/daily-report?date={formattedDate}", userToken);
+                
+                if (response.IsSuccessStatusCode)
                 {
-                    client.BaseAddress = new Uri("https://localhost:44387/");
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-
-                    // Gọi API lấy danh sách theo ngày (Cần viết thêm API này ở Backend)
-                    string formattedDate = targetDate.ToString("yyyy-MM-dd");
-                    var response = await client.GetAsync($"/api/app/attendance/daily-report?date={formattedDate}");
-                    
-                    if (response.IsSuccessStatusCode)
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    using (JsonDocument doc = JsonDocument.Parse(jsonString))
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        using (JsonDocument doc = JsonDocument.Parse(jsonString))
+                        foreach (JsonElement row in doc.RootElement.EnumerateArray())
                         {
-                            foreach (JsonElement row in doc.RootElement.EnumerateArray())
-                            {
-                                dgvAttendance.Rows.Add(
-                                    row.GetProperty("employeeCode").GetString() ?? "",
-                                    row.GetProperty("employeeName").GetString() ?? "Không rõ",
-                                    row.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Không xác định",
-                                    row.GetProperty("checkInTime").GetString() ?? "--:--",
-                                    row.GetProperty("checkOutTime").GetString() ?? "--:--",
-                                    row.GetProperty("lateMinutes").GetInt32().ToString(),
-                                    row.GetProperty("earlyLeaveMinutes").GetInt32().ToString(),
-                                    row.TryGetProperty("attendanceStatus", out var st) && st.ValueKind == JsonValueKind.String ? st.GetString() : "Có mặt"
-                                );
-                            }
+                            dgvAttendance.Rows.Add(
+                                row.GetProperty("employeeCode").GetString() ?? "",
+                                row.GetProperty("employeeName").GetString() ?? "Không rõ",
+                                row.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Không xác định",
+                                row.GetProperty("checkInTime").GetString() ?? "--:--",
+                                row.GetProperty("checkOutTime").GetString() ?? "--:--",
+                                row.GetProperty("lateMinutes").GetInt32().ToString(),
+                                row.GetProperty("earlyLeaveMinutes").GetInt32().ToString(),
+                                row.TryGetProperty("attendanceStatus", out var st) && st.ValueKind == JsonValueKind.String ? st.GetString() : "Có mặt"
+                            );
                         }
                     }
-                    else
-                    {
-                        var error = await response.Content.ReadAsStringAsync();
-                        MessageBox.Show("Lỗi máy chủ: " + error, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show("Lỗi máy chủ: " + error, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
@@ -229,25 +222,18 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                string formattedDate = date.ToString("yyyy-MM-dd");
+                var response = await ApiClient.DeleteAsync($"api/app/attendance/daily-attendance?userName={userName}&date={formattedDate}", userToken);
 
-                using (var client = new HttpClient(handler))
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-                    string formattedDate = date.ToString("yyyy-MM-dd");
-                    var response = await client.DeleteAsync($"https://localhost:44387/api/app/attendance/daily-attendance?userName={userName}&date={formattedDate}");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Đã hủy chấm công thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        await LoadAttendanceDataAsync(date);
-                    }
-                    else
-                    {
-                        var error = await response.Content.ReadAsStringAsync();
-                        MessageBox.Show("Lỗi khi hủy chấm công: " + error, "Lỗi API", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    MessageBox.Show("Đã hủy chấm công thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadAttendanceDataAsync(date);
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show("Lỗi khi hủy chấm công: " + error, "Lỗi API", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
@@ -260,17 +246,9 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-
-                using (var client = new HttpClient(handler))
+                HttpResponseMessage response;
+                if (action == "check-in")
                 {
-                    client.BaseAddress = new Uri("https://localhost:44387/");
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-
-                    HttpResponseMessage response;
-                    if (action == "check-in")
-                    {
                         // ==========================================
                         // 🔒 BẢO MẬT: KHÔNG còn tọa độ fallback cứng.
                         // Nếu không lấy được GPS → CHẶN check-in ngay lập tức.
@@ -318,12 +296,13 @@ namespace QuanLyNhanSu.DesktopClient
                         string latStr = userLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
                         string lngStr = userLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-                        response = await client.PostAsync(
-                            $"/api/app/attendance/check-in?userLat={latStr}&userLng={lngStr}", null);
+                        var emptyContent = new StringContent("", Encoding.UTF8, "application/json");
+                        response = await ApiClient.PostAsync($"api/app/attendance/check-in?userLat={latStr}&userLng={lngStr}", emptyContent, userToken);
                     }
                     else
                     {
-                        response = await client.PostAsync("/api/app/attendance/check-out", null);
+                        var emptyContent = new StringContent("", Encoding.UTF8, "application/json");
+                        response = await ApiClient.PostAsync("api/app/attendance/check-out", emptyContent, userToken);
                     }
                     
                     if (response.IsSuccessStatusCode)
@@ -343,7 +322,6 @@ namespace QuanLyNhanSu.DesktopClient
                         var errorContent = await response.Content.ReadAsStringAsync();
                         MessageBox.Show($"Thất bại: Mặc dù đã click nhưng không thành công.\n(Status {response.StatusCode})\n{errorContent}", "Lỗi Chấm Công", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
-                }
             }
             catch (Exception ex)
             {

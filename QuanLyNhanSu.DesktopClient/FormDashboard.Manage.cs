@@ -1,10 +1,12 @@
 using System;
+using System.Drawing;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Threading;
+using QuanLyNhanSu.DesktopClient.Services;
 namespace QuanLyNhanSu.DesktopClient
 {
     public partial class FormDashboard
@@ -19,29 +21,23 @@ namespace QuanLyNhanSu.DesktopClient
                 if (string.IsNullOrEmpty(userToken)) return;
                 await LoadBranchesToComboBoxAsync();
 
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                using (HttpClient client = new HttpClient(handler))
+                HttpResponseMessage response = await ApiClient.GetAsync("api/app/employee/employee", userToken);
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
-                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/employee/employee");
-                    if (response.IsSuccessStatusCode)
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    var dataList = JsonSerializer.Deserialize<JsonElement>(jsonString);
+                    dgvEmployees.Rows.Clear();
+                    foreach (var emp in dataList.EnumerateArray())
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        var dataList = JsonSerializer.Deserialize<JsonElement>(jsonString);
-                        dgvEmployees.Rows.Clear();
-                        foreach (var emp in dataList.EnumerateArray())
-                        {
-                            dgvEmployees.Rows.Add(
-                                emp.GetProperty("id").GetString() ?? "",
-                                emp.TryGetProperty("branchId", out var bId) && bId.ValueKind == JsonValueKind.String ? bId.GetString() : "",
-                                emp.TryGetProperty("role", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : "User",
-                                emp.GetProperty("userName").GetString() ?? "",
-                                emp.GetProperty("email").GetString() ?? "",
-                                emp.GetProperty("phoneNumber").GetString() ?? "",
-                                emp.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Chưa phân bổ"
-                            );
-                        }
+                        dgvEmployees.Rows.Add(
+                            emp.GetProperty("id").GetString() ?? "",
+                            emp.TryGetProperty("branchId", out var bId) && bId.ValueKind == JsonValueKind.String ? bId.GetString() : "",
+                            emp.TryGetProperty("role", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : "User",
+                            emp.GetProperty("userName").GetString() ?? "",
+                            emp.GetProperty("email").GetString() ?? "",
+                            emp.GetProperty("phoneNumber").GetString() ?? "",
+                            emp.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Chưa phân bổ"
+                        );
                     }
                 }
             }
@@ -53,28 +49,23 @@ namespace QuanLyNhanSu.DesktopClient
             try
             {
                 if (string.IsNullOrEmpty(userToken)) return;
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                using (HttpClient client = new HttpClient(handler))
+                
+                HttpResponseMessage response = await ApiClient.GetAsync("api/app/branch", userToken);
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
-                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/branch");
-                    if (response.IsSuccessStatusCode)
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    var dataList = JsonSerializer.Deserialize<JsonElement>(jsonString);
+                    var dt = new System.Data.DataTable();
+                    dt.Columns.Add("Id", typeof(string));
+                    dt.Columns.Add("Name", typeof(string));
+                    dt.Rows.Add("", "-- Chưa phân bổ --");
+                    foreach (var branch in dataList.EnumerateArray())
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        var dataList = JsonSerializer.Deserialize<JsonElement>(jsonString);
-                        var dt = new System.Data.DataTable();
-                        dt.Columns.Add("Id", typeof(string));
-                        dt.Columns.Add("Name", typeof(string));
-                        dt.Rows.Add("", "-- Chưa phân bổ --");
-                        foreach (var branch in dataList.EnumerateArray())
-                        {
-                            dt.Rows.Add(branch.GetProperty("id").GetString(), branch.GetProperty("name").GetString());
-                        }
-                        cmbBranch.DataSource = dt;
-                        cmbBranch.DisplayMember = "Name";
-                        cmbBranch.ValueMember = "Id";
+                        dt.Rows.Add(branch.GetProperty("id").GetString(), branch.GetProperty("name").GetString());
                     }
+                    cmbBranch.DataSource = dt;
+                    cmbBranch.DisplayMember = "Name";
+                    cmbBranch.ValueMember = "Id";
                 }
             }
             catch { /* Ignore error on load */ }
@@ -145,49 +136,40 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                HttpResponseMessage response;
+                string? branchIdVal = cmbBranch.SelectedValue?.ToString();
+                Guid? selectedBranchId = string.IsNullOrEmpty(branchIdVal) ? null : Guid.Parse(branchIdVal);
 
-                using (HttpClient client = new HttpClient(handler))
+                if (currentEditUserId == null) 
                 {
-                    client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
+                    var newUser = new { userName = txtEmpUserName.Text, email = txtEmpEmail.Text, phoneNumber = txtEmpPhone.Text, password = txtEmpPassword.Text, role = cbEmpRole.Text, branchId = selectedBranchId };
+                    var content = new StringContent(JsonSerializer.Serialize(newUser), Encoding.UTF8, "application/json");
+                    response = await ApiClient.PostAsync("api/app/employee/account", content, userToken);
+                }
+                else
+                {
+                    var updatedUser = new { userName = txtEmpUserName.Text, email = txtEmpEmail.Text, phoneNumber = txtEmpPhone.Text, role = cbEmpRole.Text, branchId = selectedBranchId };
+                    var content = new StringContent(JsonSerializer.Serialize(updatedUser), Encoding.UTF8, "application/json");
+                    response = await ApiClient.PutAsync($"api/app/employee/{currentEditUserId}/account", content, userToken);
+                }
 
-                    HttpResponseMessage response;
-                    string? branchIdVal = cmbBranch.SelectedValue?.ToString();
-                    Guid? selectedBranchId = string.IsNullOrEmpty(branchIdVal) ? null : Guid.Parse(branchIdVal);
-
-                    if (currentEditUserId == null) 
-                    {
-                        var newUser = new { userName = txtEmpUserName.Text, email = txtEmpEmail.Text, phoneNumber = txtEmpPhone.Text, password = txtEmpPassword.Text, role = cbEmpRole.Text, branchId = selectedBranchId };
-                        var content = new StringContent(JsonSerializer.Serialize(newUser), Encoding.UTF8, "application/json");
-                        response = await client.PostAsync("https://localhost:44387/api/app/employee/account", content);
-                    }
+                if (response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Lưu thông tin thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    SwitchPanel(pnlManageContent);
+                    await LoadEmployeeListAsync(); 
+                }
+                else
+                {
+                    string rawResponse = await response.Content.ReadAsStringAsync();
+                    if (string.IsNullOrWhiteSpace(rawResponse)) MessageBox.Show($"Lỗi API! Mã lỗi: {response.StatusCode}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     else
                     {
-                        var updatedUser = new { userName = txtEmpUserName.Text, email = txtEmpEmail.Text, phoneNumber = txtEmpPhone.Text, role = cbEmpRole.Text, branchId = selectedBranchId };
-                        var content = new StringContent(JsonSerializer.Serialize(updatedUser), Encoding.UTF8, "application/json");
-                        response = await client.PutAsync($"https://localhost:44387/api/app/employee/{currentEditUserId}/account", content);
-                    }
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Lưu thông tin thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        SwitchPanel(pnlManageContent);
-                        await LoadEmployeeListAsync(); 
-                    }
-                    else
-                    {
-                        string rawResponse = await response.Content.ReadAsStringAsync();
-                        if (string.IsNullOrWhiteSpace(rawResponse)) MessageBox.Show($"Lỗi API! Mã lỗi: {response.StatusCode}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        else
-                        {
-                            try {
-                                var errorData = JsonSerializer.Deserialize<JsonElement>(rawResponse);
-                                string errMsg = errorData.GetProperty("error").GetProperty("message").GetString() ?? "Lỗi không xác định";
-                                MessageBox.Show($"Thất bại: {errMsg}", "Lỗi phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            } catch { MessageBox.Show($"Lỗi máy chủ:\n{rawResponse}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-                        }
+                        try {
+                            var errorData = JsonSerializer.Deserialize<JsonElement>(rawResponse);
+                            string errMsg = errorData.GetProperty("error").GetProperty("message").GetString() ?? "Lỗi không xác định";
+                            MessageBox.Show($"Thất bại: {errMsg}", "Lỗi phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        } catch { MessageBox.Show($"Lỗi máy chủ:\n{rawResponse}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error); }
                     }
                 }
             }
@@ -202,25 +184,19 @@ namespace QuanLyNhanSu.DesktopClient
             {
                 try
                 {
-                    HttpClientHandler handler = new HttpClientHandler();
-                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                    using (HttpClient client = new HttpClient(handler))
-                    {
-                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
-                        HttpResponseMessage response = await client.DeleteAsync($"https://localhost:44387/api/app/employee/{currentEditUserId}/account");
+                    HttpResponseMessage response = await ApiClient.DeleteAsync($"api/app/employee/{currentEditUserId}/account", userToken);
 
-                        if (response.IsSuccessStatusCode) {
-                            MessageBox.Show("Xóa thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            SwitchPanel(pnlManageContent); await LoadEmployeeListAsync();
-                        }
-                        else {
-                            string rawResponse = await response.Content.ReadAsStringAsync();
-                            try {
-                                var errorData = JsonSerializer.Deserialize<JsonElement>(rawResponse);
-                                string errMsg = errorData.GetProperty("error").GetProperty("message").GetString() ?? "Lỗi quyền";
-                                MessageBox.Show($"Lỗi: {errMsg}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            } catch { MessageBox.Show($"Lỗi máy chủ:\n{rawResponse}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-                        }
+                    if (response.IsSuccessStatusCode) {
+                        MessageBox.Show("Xóa thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        SwitchPanel(pnlManageContent); await LoadEmployeeListAsync();
+                    }
+                    else {
+                        string rawResponse = await response.Content.ReadAsStringAsync();
+                        try {
+                            var errorData = JsonSerializer.Deserialize<JsonElement>(rawResponse);
+                            string errMsg = errorData.GetProperty("error").GetProperty("message").GetString() ?? "Lỗi quyền";
+                            MessageBox.Show($"Lỗi: {errMsg}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        } catch { MessageBox.Show($"Lỗi máy chủ:\n{rawResponse}", "Thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error); }
                     }
                 }
                 catch (Exception ex) { MessageBox.Show("Lỗi máy chủ: " + ex.Message); }
@@ -235,19 +211,12 @@ namespace QuanLyNhanSu.DesktopClient
             {
                 try
                 {
-                    HttpClientHandler handler = new HttpClientHandler();
-                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                    using (HttpClient client = new HttpClient(handler))
-                    {
-                        client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
+                    var emptyContent = new StringContent("", Encoding.UTF8, "application/json");
+                    HttpResponseMessage response = await ApiClient.PostAsync($"api/app/employee/{currentEditUserId}/reset-key", emptyContent, userToken);
+                    string rawResponse = await response.Content.ReadAsStringAsync();
 
-                        var emptyContent = new StringContent("", Encoding.UTF8, "application/json");
-                        HttpResponseMessage response = await client.PostAsync($"https://localhost:44387/api/app/employee/{currentEditUserId}/reset-key", emptyContent);
-                        string rawResponse = await response.Content.ReadAsStringAsync();
-
-                        if (response.IsSuccessStatusCode) {
-                            string newKey = rawResponse.Replace("\"", "");
+                    if (response.IsSuccessStatusCode) {
+                        string newKey = rawResponse.Replace("\"", "");
                             MessageBox.Show($"CẤP LẠI KEY THÀNH CÔNG!\nKey Mới: {newKey}", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         else {
@@ -257,8 +226,6 @@ namespace QuanLyNhanSu.DesktopClient
                                 MessageBox.Show($"Thất bại: {errMsg}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             } catch { MessageBox.Show($"Lỗi máy chủ:\n{rawResponse}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error); }
                         }
-                        
-                    }
                 }
                 catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
             }

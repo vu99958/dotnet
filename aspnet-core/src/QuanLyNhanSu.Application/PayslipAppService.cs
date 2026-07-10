@@ -10,7 +10,7 @@ using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
-    [Authorize(QuanLyNhanSuPermissions.Payslip.Default)]
+    [Authorize]
     public class PayslipAppService : QuanLyNhanSuAppService, IPayslipAppService
     {
         private readonly IRepository<SalaryProfile, Guid> _salaryProfileRepository;

@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -38,23 +39,18 @@ namespace QuanLyNhanSu.DesktopClient
             try
             {
                 if (string.IsNullOrEmpty(userToken)) return;
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                using (HttpClient client = new HttpClient(handler))
+                
+                HttpResponseMessage response = await ApiClient.GetAsync("api/app/my-profile/my-profile", userToken);
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
-                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/my-profile/my-profile");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
-                        lblProName.Text = data.GetProperty("userName").GetString()?.ToUpper();
-                        txtEditEmail.Text = data.GetProperty("email").GetString();
-                        string roleStr = data.GetProperty("roles").GetString() ?? "USER";
-                        lblProRole.Text = string.IsNullOrEmpty(roleStr) ? "USER" : roleStr.ToUpper();
-                        txtEditBranch.Text = data.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Chưa phân bổ";
-                        DateTime creationTime = data.GetProperty("creationTime").GetDateTime();
-                        lblProDate.Text = "Thành viên từ: " + creationTime.ToString("dd/MM/yyyy");
-                    }
+                    var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                    lblProName.Text = data.GetProperty("userName").GetString()?.ToUpper();
+                    txtEditEmail.Text = data.GetProperty("email").GetString();
+                    string roleStr = data.GetProperty("roles").GetString() ?? "USER";
+                    lblProRole.Text = string.IsNullOrEmpty(roleStr) ? "USER" : roleStr.ToUpper();
+                    txtEditBranch.Text = data.TryGetProperty("branchName", out var bn) && bn.ValueKind == JsonValueKind.String ? bn.GetString() : "Chưa phân bổ";
+                    DateTime creationTime = data.GetProperty("creationTime").GetDateTime();
+                    lblProDate.Text = "Thành viên từ: " + creationTime.ToString("dd/MM/yyyy");
                 }
             }
             catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }

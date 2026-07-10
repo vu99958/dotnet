@@ -3,6 +3,10 @@ using System.Drawing;
 using System.Net.Http;
 using System.Text.Json;
 using System.Windows.Forms;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {

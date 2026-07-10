@@ -13,7 +13,7 @@ namespace QuanLyNhanSu
     /// <summary>
     /// Service quản lý cấu hình lương cho từng nhân viên
     /// </summary>
-    [Authorize(QuanLyNhanSuPermissions.SalaryProfile.Default)]
+    [Authorize]
     public class SalaryProfileAppService : QuanLyNhanSuAppService, ISalaryProfileAppService
     {
         private readonly IRepository<SalaryProfile, Guid> _salaryProfileRepository;

@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -166,21 +167,11 @@ namespace QuanLyNhanSu.DesktopClient
 
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (s, c, ch, ssl) => true;
+                // ─── 1. GỌI API CHẤM CÔNG HÔM NAY ──────────
+                await LoadAttendancePieChartAsync();
 
-                using (HttpClient client = new HttpClient(handler))
-                {
-                    client.BaseAddress = new Uri("https://localhost:44387/");
-                    client.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", userToken);
-
-                    // ─── 1. GỌI API CHẤM CÔNG HÔM NAY ──────────
-                    await LoadAttendancePieChartAsync(client);
-
-                    // ─── 2. GỌI API QUỸ LƯƠNG NĂM NAY ──────────
-                    await LoadSalaryColumnChartAsync(client);
-                }
+                // ─── 2. GỌI API QUỸ LƯƠNG NĂM NAY ──────────
+                await LoadSalaryColumnChartAsync();
             }
             catch (Exception ex)
             {
@@ -190,11 +181,11 @@ namespace QuanLyNhanSu.DesktopClient
         }
 
         /// <summary>Pie Chart: Đúng giờ vs Đi trễ/Về sớm.</summary>
-        private async Task LoadAttendancePieChartAsync(HttpClient client)
+        private async Task LoadAttendancePieChartAsync()
         {
             try
             {
-                var response = await client.GetAsync("api/app/dashboard/today-attendance-stats");
+                var response = await ApiClient.GetAsync("api/app/dashboard/today-attendance-stats", userToken);
 
                 if (!response.IsSuccessStatusCode) 
                 {
@@ -246,11 +237,11 @@ namespace QuanLyNhanSu.DesktopClient
         }
 
         /// <summary>Column Chart: Tổng lương Net 12 tháng.</summary>
-        private async Task LoadSalaryColumnChartAsync(HttpClient client)
+        private async Task LoadSalaryColumnChartAsync()
         {
             try
             {
-                var response = await client.GetAsync("api/app/dashboard/monthly-salary-stats");
+                var response = await ApiClient.GetAsync("api/app/dashboard/monthly-salary-stats", userToken);
 
                 if (!response.IsSuccessStatusCode)
                 {

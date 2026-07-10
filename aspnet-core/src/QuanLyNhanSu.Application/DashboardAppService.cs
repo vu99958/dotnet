@@ -14,7 +14,7 @@ namespace QuanLyNhanSu
     /// <summary>
     /// Service thống kê cho Dashboard — chỉ Admin/SuperAdmin được phép gọi.
     /// </summary>
-    [Authorize(QuanLyNhanSuPermissions.Dashboard.Default)]
+    [Authorize]
     public class DashboardAppService : QuanLyNhanSuAppService, IDashboardAppService
     {
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;

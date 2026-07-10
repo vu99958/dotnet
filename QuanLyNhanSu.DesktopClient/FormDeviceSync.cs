@@ -7,7 +7,9 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Linq;
 using QuanLyNhanSu.DesktopClient.Models;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -290,7 +292,7 @@ namespace QuanLyNhanSu.DesktopClient
 
         #region ═══════════════ XỬ LÝ KẾT NỐI ═══════════════
 
-        private void BtnConnect_Click(object? sender, EventArgs e)
+        private async void BtnConnect_Click(object? sender, EventArgs e)
         {
             string ip = txtIpAddress.Text.Trim();
             int port = (int)nudPort.Value;
@@ -304,7 +306,7 @@ namespace QuanLyNhanSu.DesktopClient
             btnConnect.Enabled = false;
             btnConnect.Text = "Đang kết nối...";
 
-            bool success = _deviceService.Connect(ip, port);
+            bool success = await Task.Run(() => _deviceService.Connect(ip, port));
 
             if (success)
             {
@@ -690,13 +692,7 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                using var handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (s, c, ch, ssl) => true;
-                using var client = new HttpClient(handler) { BaseAddress = new Uri(API_BASE_URL) };
-                if (!string.IsNullOrEmpty(_userToken))
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _userToken);
-
-                var response = await client.GetAsync("/api/app/biometric/all-templates");
+                var response = await ApiClient.GetAsync("api/app/biometric/all-templates", _userToken);
                 if (!response.IsSuccessStatusCode) return null;
 
                 var json = await response.Content.ReadAsStringAsync();
@@ -715,15 +711,12 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                using var handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (s, c, ch, ssl) => true;
-                using var client = new HttpClient(handler) { BaseAddress = new Uri(API_BASE_URL) };
-                if (!string.IsNullOrEmpty(_userToken))
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _userToken);
+                // Xóa tiền tố '/' nếu có vì ApiClient tự nối vào BaseUrl
+                if (endpoint.StartsWith("/")) endpoint = endpoint.Substring(1);
 
                 var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await client.PostAsync(endpoint, content);
+                var response = await ApiClient.PostAsync(endpoint, content, _userToken);
 
                 if (response.IsSuccessStatusCode)
                 {

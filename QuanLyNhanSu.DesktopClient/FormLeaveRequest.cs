@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
 {
@@ -154,39 +155,33 @@ namespace QuanLyNhanSu.DesktopClient
         {
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                using (HttpClient client = new HttpClient(handler))
+                var response = await ApiClient.GetAsync("api/app/leave-request?maxResultCount=1000", _userToken);
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/leave-request?maxResultCount=1000");
-                    if (response.IsSuccessStatusCode)
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    using (JsonDocument doc = JsonDocument.Parse(jsonString))
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        using (JsonDocument doc = JsonDocument.Parse(jsonString))
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("items", out JsonElement items))
                         {
-                            var root = doc.RootElement;
-                            if (root.TryGetProperty("items", out JsonElement items))
+                            dgvLeaveRequests.Rows.Clear();
+                            foreach (var item in items.EnumerateArray())
                             {
-                                dgvLeaveRequests.Rows.Clear();
-                                foreach (var item in items.EnumerateArray())
-                                {
-                                    dgvLeaveRequests.Rows.Add(
-                                        item.GetProperty("id").GetString(),
-                                        item.GetProperty("userName").GetString(),
-                                        item.GetProperty("startDate").GetDateTime().ToString("dd/MM/yyyy"),
-                                        item.GetProperty("endDate").GetDateTime().ToString("dd/MM/yyyy"),
-                                        item.GetProperty("reason").GetString(),
-                                        item.GetProperty("status").GetString()
-                                    );
-                                }
+                                dgvLeaveRequests.Rows.Add(
+                                    item.GetProperty("id").GetString(),
+                                    item.GetProperty("userName").GetString(),
+                                    item.GetProperty("startDate").GetDateTime().ToString("dd/MM/yyyy"),
+                                    item.GetProperty("endDate").GetDateTime().ToString("dd/MM/yyyy"),
+                                    item.GetProperty("reason").GetString(),
+                                    item.GetProperty("status").GetString()
+                                );
                             }
                         }
                     }
-                    else
-                    {
-                        MessageBox.Show("Lỗi tải dữ liệu: " + await response.Content.ReadAsStringAsync());
-                    }
+                }
+                else
+                {
+                    MessageBox.Show("Lỗi tải dữ liệu: " + await response.Content.ReadAsStringAsync());
                 }
             }
             catch (Exception ex)
@@ -241,21 +236,15 @@ namespace QuanLyNhanSu.DesktopClient
                 {
                     try
                     {
-                        HttpClientHandler handler = new HttpClientHandler();
-                        handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                        using (HttpClient client = new HttpClient(handler))
+                        HttpResponseMessage response = await ApiClient.DeleteAsync($"api/app/leave-request/{id}", _userToken);
+                        if (response.IsSuccessStatusCode)
                         {
-                            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                            HttpResponseMessage response = await client.DeleteAsync($"https://localhost:44387/api/app/leave-request/{id}");
-                            if (response.IsSuccessStatusCode)
-                            {
-                                MessageBox.Show("Xóa thành công!");
-                                await LoadDataAsync();
-                            }
-                            else
-                            {
-                                MessageBox.Show("Lỗi: " + await response.Content.ReadAsStringAsync());
-                            }
+                            MessageBox.Show("Xóa thành công!");
+                            await LoadDataAsync();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Lỗi: " + await response.Content.ReadAsStringAsync());
                         }
                     }
                     catch (Exception ex)
@@ -281,26 +270,17 @@ namespace QuanLyNhanSu.DesktopClient
                 {
                     try
                     {
-                        HttpClientHandler handler = new HttpClientHandler();
-                        handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                        using (HttpClient client = new HttpClient(handler))
+                        var content = new StringContent("", Encoding.UTF8, "application/json");
+                        HttpResponseMessage response = await ApiClient.PostAsync($"api/app/leave-request/{id}/change-status?newStatus=Approved", content, _userToken);
+                        
+                        if (response.IsSuccessStatusCode)
                         {
-                            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                            
-                            // Gọi hàm ChangeStatusAsync bằng POST (convention của ABP cho action)
-                            // /api/app/leave-request/{id}/change-status?newStatus=Approved
-                            var content = new StringContent("", Encoding.UTF8, "application/json");
-                            HttpResponseMessage response = await client.PostAsync($"https://localhost:44387/api/app/leave-request/{id}/change-status?newStatus=Approved", content);
-                            
-                            if (response.IsSuccessStatusCode)
-                            {
-                                MessageBox.Show("Đã duyệt đơn!");
-                                await LoadDataAsync();
-                            }
-                            else
-                            {
-                                MessageBox.Show("Lỗi: " + await response.Content.ReadAsStringAsync());
-                            }
+                            MessageBox.Show("Đã duyệt đơn!");
+                            await LoadDataAsync();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Lỗi: " + await response.Content.ReadAsStringAsync());
                         }
                     }
                     catch (Exception ex)
@@ -325,25 +305,18 @@ namespace QuanLyNhanSu.DesktopClient
                 {
                     try
                     {
-                        HttpClientHandler handler = new HttpClientHandler();
-                        handler.ServerCertificateCustomValidationCallback = (s, cert, chain, sslPolicyErrors) => true;
-                        using (HttpClient client = new HttpClient(handler))
+                        var content = new StringContent("", Encoding.UTF8, "application/json");
+                        HttpResponseMessage response = await ApiClient.PostAsync($"api/app/leave-request/{id}/change-status?newStatus=Rejected", content, _userToken);
+                        
+                        if (response.IsSuccessStatusCode)
                         {
-                            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                            
-                            var content = new StringContent("", Encoding.UTF8, "application/json");
-                            HttpResponseMessage response = await client.PostAsync($"https://localhost:44387/api/app/leave-request/{id}/change-status?newStatus=Rejected", content);
-                            
-                            if (response.IsSuccessStatusCode)
-                            {
-                                MessageBox.Show("Đã từ chối đơn!");
-                                await LoadDataAsync();
-                            }
-                            else
-                            {
-                                var errorString = await response.Content.ReadAsStringAsync();
-                                MessageBox.Show("Lỗi: " + errorString);
-                            }
+                            MessageBox.Show("Đã từ chối đơn!");
+                            await LoadDataAsync();
+                        }
+                        else
+                        {
+                            var errorString = await response.Content.ReadAsStringAsync();
+                            MessageBox.Show("Lỗi: " + errorString);
                         }
                     }
                     catch (Exception ex)
