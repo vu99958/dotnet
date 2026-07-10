@@ -61,6 +61,7 @@ public class QuanLyNhanSuDbContext :
     public DbSet<Payslip> Payslips { get; set; }
     public DbSet<PayslipComplaint> PayslipComplaints { get; set; }
     public DbSet<Branch> Branches { get; set; } // Bảng chi nhánh (Geofencing đa điểm)
+    public DbSet<BiometricTemplate> BiometricTemplates { get; set; } // Bảng sinh trắc học (vân tay/khuôn mặt)
 
     #endregion
 
@@ -109,6 +110,14 @@ public class QuanLyNhanSuDbContext :
         {
             b.ToTable("AppBranches"); // Bảng chi nhánh cho Geofencing
             b.ConfigureByConvention();
+        });
+
+        builder.Entity<BiometricTemplate>(b =>
+        {
+            b.ToTable("AppBiometricTemplates"); // Bảng sinh trắc học
+            b.ConfigureByConvention();
+            b.HasIndex(x => new { x.EnrollNumber, x.TemplateType, x.FingerIndex })
+                .IsUnique(); // Chống trùng lặp composite key
         });
 
         builder.ConfigurePermissionManagement();

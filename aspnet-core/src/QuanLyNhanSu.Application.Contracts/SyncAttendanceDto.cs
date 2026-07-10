@@ -12,5 +12,11 @@ namespace QuanLyNhanSu
 
         // Gán giá trị mặc định để xóa cảnh báo vàng
         public string CheckType { get; set; } = string.Empty; 
+
+        // Phương thức xác thực từ máy chấm công: "Fingerprint", "Face", "Password", "Card"
+        public string VerifyMethod { get; set; } = string.Empty;
+
+        // Mã nhân viên trên máy chấm công (EnrollNumber)
+        public string DeviceUserId { get; set; } = string.Empty;
     }
 }

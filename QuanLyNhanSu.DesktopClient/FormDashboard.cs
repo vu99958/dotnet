@@ -35,7 +35,7 @@ namespace QuanLyNhanSu.DesktopClient
         // CÁC BIẾN CHO SIDEBAR & HEADER
         private Panel pnlSidebar = null!, pnlHeader = null!, pnlMainContent = null!;
         private FlowLayoutPanel flpSummary = null!;
-        private Button btnViewProfile = null!, btnLeaveManagement = null!, btnLogoutDash = null!;
+        private Button btnViewProfile = null!, btnLeaveManagement = null!, btnLogoutDash = null!, btnDeviceSync = null!;
         private Label lblHeaderTitle = null!, lblHeaderTime = null!;
         private System.Windows.Forms.Timer timerHeader = null!;
 
@@ -126,6 +126,9 @@ namespace QuanLyNhanSu.DesktopClient
 
             btnMonthlyReport = new Button { Text = "📊 Báo cáo tháng", Visible = false };
             btnMonthlyReport.Click += async (s, e) => { SwitchPanel(pnlMonthlyReport); await LoadMonthlyReportAsync(); };
+
+            btnDeviceSync = new Button { Text = "🔄 Máy chấm công", Visible = false };
+            btnDeviceSync.Click += (s, e) => { new FormDeviceSync(userToken).ShowDialog(); };
 
             btnLogoutDash = new Button { Text = "Đăng xuất" };
             btnLogoutDash.Click += (s, e) => { Application.Restart(); };            // 2. PROFILE CARD
@@ -264,7 +267,7 @@ namespace QuanLyNhanSu.DesktopClient
             pnlSidebar.Controls.Add(pnlLogo);
 
             // Format các nút menu
-            Button[] menuButtons = { btnLogoutDash, btnMonthlyReport, btnBranchManager, btnPayroll, btnLeaveManagement, btnManageEmp, btnMenuAttendance, btnViewProfile };
+            Button[] menuButtons = { btnLogoutDash, btnDeviceSync, btnMonthlyReport, btnBranchManager, btnPayroll, btnLeaveManagement, btnManageEmp, btnMenuAttendance, btnViewProfile };
             
             // Re-order buttons for docking. Since they dock Top, adding them in reverse logical order is needed if we iterate, 
             // but actually let's just configure them and add them directly.
@@ -286,6 +289,7 @@ namespace QuanLyNhanSu.DesktopClient
             btnLogoutDash.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
 
             // Add to sidebar (must be in correct visual order top to bottom: Profile -> Attendance -> Manage -> Leave -> Payroll)
+            pnlSidebar.Controls.Add(btnDeviceSync);
             pnlSidebar.Controls.Add(btnMonthlyReport);
             pnlSidebar.Controls.Add(btnBranchManager);
             pnlSidebar.Controls.Add(btnPayroll);
@@ -470,6 +474,9 @@ namespace QuanLyNhanSu.DesktopClient
 
                             // Hiện nút Báo cáo Tổng hợp Tháng cho Admin
                             btnMonthlyReport.Visible = true;
+
+                            // Hiện nút Quản lý Máy Chấm Công cho Admin
+                            btnDeviceSync.Visible = true;
                         }  
                         else
                         {
