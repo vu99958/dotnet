@@ -46,9 +46,6 @@ namespace QuanLyNhanSu
             var userDictionary = users.ToDictionary(x => x.UserName, x => x.Id);
 
             var listToSave = new List<AttendanceRecord>();
-            var today = DateTime.Now.Date;
-            var shiftStart = today.AddHours(8);  // 08:00
-            var shiftEnd = today.AddHours(17);   // 17:00
 
             var groupedData = inputList.GroupBy(x => x.UserName).ToList();
 
@@ -60,6 +57,10 @@ namespace QuanLyNhanSu
                 var checkOut = group.Where(x => x.CheckType == "OUT").OrderByDescending(x => x.TimeStamp).FirstOrDefault();
 
                 if (checkIn == null) continue;
+
+                var workDate = checkIn.TimeStamp.Date;
+                var shiftStart = workDate.AddHours(8);  // 08:00
+                var shiftEnd = workDate.AddHours(17);   // 17:00
 
                 int lateMinutes = 0;
                 int earlyMinutes = 0;
