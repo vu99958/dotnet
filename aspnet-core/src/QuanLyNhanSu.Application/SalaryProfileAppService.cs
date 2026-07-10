@@ -2,15 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
+using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
     /// <summary>
     /// Service quản lý cấu hình lương cho từng nhân viên
     /// </summary>
+    [Authorize(QuanLyNhanSuPermissions.SalaryProfile.Default)]
     public class SalaryProfileAppService : QuanLyNhanSuAppService, ISalaryProfileAppService
     {
         private readonly IRepository<SalaryProfile, Guid> _salaryProfileRepository;

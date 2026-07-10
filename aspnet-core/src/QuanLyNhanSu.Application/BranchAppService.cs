@@ -2,16 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using QuanLyNhanSu.Domain;
+using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
     /// <summary>
     /// Service quản lý chi nhánh — CRUD đầy đủ
     /// </summary>
+    [Authorize(QuanLyNhanSuPermissions.Branch.Default)]
     public class BranchAppService : QuanLyNhanSuAppService, IBranchAppService
     {
         private readonly IRepository<Branch, Guid> _branchRepository;

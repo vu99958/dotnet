@@ -2,15 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
-using Volo.Abp.Identity; 
-using Microsoft.AspNetCore.Authorization; 
+using Volo.Abp.Identity;
 using QuanLyNhanSu.Domain;
+using QuanLyNhanSu.Permissions;
+using QuanLyNhanSu.Services;
 
 namespace QuanLyNhanSu
 {
+    [Authorize(QuanLyNhanSuPermissions.Attendance.Default)]
     public class AttendanceAppService : QuanLyNhanSuAppService, IAttendanceAppService
     {
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;
@@ -18,19 +21,22 @@ namespace QuanLyNhanSu
         private readonly IRepository<UserKey, Guid> _userKeyRepository;
         private readonly IRepository<Branch, Guid> _branchRepository;
         private readonly IRepository<LeaveRequest, Guid> _leaveRequestRepository;
+        private readonly AttendanceManager _attendanceManager;
 
         public AttendanceAppService(
             IRepository<AttendanceRecord, Guid> attendanceRepository,
             IRepository<IdentityUser, Guid> userRepository,
             IRepository<UserKey, Guid> userKeyRepository,
             IRepository<Branch, Guid> branchRepository,
-            IRepository<LeaveRequest, Guid> leaveRequestRepository)
+            IRepository<LeaveRequest, Guid> leaveRequestRepository,
+            AttendanceManager attendanceManager)
         {
             _attendanceRepository = attendanceRepository;
             _userRepository = userRepository;
             _userKeyRepository = userKeyRepository;
             _branchRepository = branchRepository;
             _leaveRequestRepository = leaveRequestRepository;
+            _attendanceManager = attendanceManager;
         }
 
         // ==========================================
@@ -46,6 +52,7 @@ namespace QuanLyNhanSu
             var userDictionary = users.ToDictionary(x => x.UserName, x => x.Id);
 
             var listToSave = new List<AttendanceRecord>();
+            var listToUpdate = new List<AttendanceRecord>();
 
             var groupedData = inputList.GroupBy(x => x.UserName).ToList();
 
@@ -56,38 +63,51 @@ namespace QuanLyNhanSu
                 var checkIn = group.Where(x => x.CheckType == "IN").OrderBy(x => x.TimeStamp).FirstOrDefault();
                 var checkOut = group.Where(x => x.CheckType == "OUT").OrderByDescending(x => x.TimeStamp).FirstOrDefault();
 
-                if (checkIn == null) continue;
+                if (checkIn == null && checkOut == null) continue;
 
-                var workDate = checkIn.TimeStamp.Date;
+                // Sử dụng thời gian của CheckIn hoặc CheckOut làm ngày làm việc
+                var referenceTime = checkIn?.TimeStamp ?? checkOut!.TimeStamp;
+                var workDate = referenceTime.Date;
+
+                // Kiểm tra xem đã có bản ghi nào trong ngày chưa
+                var existingRecord = await _attendanceRepository.FirstOrDefaultAsync(x => x.UserId == userId && x.WorkDate == workDate);
+
+                // TODO: Tương lai lấy từ cấu hình Branch hoặc WorkShift
                 var shiftStart = workDate.AddHours(8);  // 08:00
                 var shiftEnd = workDate.AddHours(17);   // 17:00
 
-                int lateMinutes = 0;
-                int earlyMinutes = 0;
-                string statusMessage = "Hệ thống tự động đồng bộ";
+                var finalCheckIn = checkIn?.TimeStamp ?? existingRecord?.CheckInTime;
+                var finalCheckOut = checkOut?.TimeStamp ?? existingRecord?.CheckOutTime;
 
-                if (checkIn.TimeStamp > shiftStart)
+                var (lateMinutes, earlyMinutes) = _attendanceManager.CalculateLateAndEarly(finalCheckIn, finalCheckOut, shiftStart, shiftEnd);
+
+                if (existingRecord != null)
                 {
-                    lateMinutes = (int)(checkIn.TimeStamp - shiftStart).TotalMinutes;
+                    // Cập nhật bản ghi hiện tại
+                    existingRecord.CheckInTime = finalCheckIn;
+                    existingRecord.CheckOutTime = finalCheckOut;
+                    existingRecord.LateMinutes = lateMinutes;
+                    existingRecord.EarlyLeaveMinutes = earlyMinutes;
+                    listToUpdate.Add(existingRecord);
                 }
-
-                if (checkOut != null && checkOut.TimeStamp < shiftEnd)
+                else
                 {
-                    earlyMinutes = (int)(shiftEnd - checkOut.TimeStamp).TotalMinutes;
+                    // Tạo mới bản ghi
+                    string statusMessage = "Hệ thống tự động đồng bộ";
+                    var record = new AttendanceRecord(
+                        GuidGenerator.Create(),
+                        userId,
+                        workDate,
+                        statusMessage
+                    )
+                    {
+                        CheckInTime = finalCheckIn,
+                        CheckOutTime = finalCheckOut,
+                        LateMinutes = lateMinutes,
+                        EarlyLeaveMinutes = earlyMinutes
+                    };
+                    listToSave.Add(record);
                 }
-
-                var record = new AttendanceRecord(
-                    GuidGenerator.Create(),
-                    userId,
-                    checkIn.TimeStamp.Date,
-                    statusMessage
-                );
-                record.CheckInTime = checkIn.TimeStamp;
-                record.CheckOutTime = checkOut?.TimeStamp;
-                record.LateMinutes = lateMinutes;
-                record.EarlyLeaveMinutes = earlyMinutes;
-
-                listToSave.Add(record);
             }
 
             if (listToSave.Any())
@@ -95,7 +115,12 @@ namespace QuanLyNhanSu
                 await _attendanceRepository.InsertManyAsync(listToSave);
             }
 
-            return listToSave.Count; 
+            if (listToUpdate.Any())
+            {
+                await _attendanceRepository.UpdateManyAsync(listToUpdate);
+            }
+
+            return listToSave.Count + listToUpdate.Count; 
         }
 
         // ==========================================
@@ -113,14 +138,11 @@ namespace QuanLyNhanSu
             if (userKey == null || !userKey.BranchId.HasValue)
                 throw new UserFriendlyException("Tài khoản của bạn chưa được phân bổ về chi nhánh nào. Vui lòng liên hệ Admin!");
 
-            var matchedBranch = await _branchRepository.FirstOrDefaultAsync(b => b.Id == userKey.BranchId.Value);
-            
-            if (matchedBranch == null)
-                throw new UserFriendlyException("Chi nhánh phân bổ không tồn tại hoặc đã bị xóa!");
+            // Tính khoảng cách bằng AttendanceManager
+            double dist = await _attendanceManager.CalculateDistanceAsync(userKey.BranchId.Value, userLat, userLng);
 
-            // Tính khoảng cách
-            double dist = CalculateDistanceInMeters(userLat, userLng, matchedBranch.Latitude, matchedBranch.Longitude);
-            
+            var matchedBranch = await _branchRepository.GetAsync(userKey.BranchId.Value);
+
             if (dist > matchedBranch.RadiusInMeters)
             {
                 throw new UserFriendlyException(
@@ -356,23 +378,6 @@ namespace QuanLyNhanSu
             }
 
             return result.OrderBy(x => x.EmployeeCode).ToList();
-        }
-
-        // ==========================================
-        // HAVERSINE FORMULA - TÍNH KHOẢNG CÁCH (MÉT)
-        // ==========================================
-        private double CalculateDistanceInMeters(double lat1, double lng1, double lat2, double lng2)
-        {
-            const double R = 6371000; // Bán kính Trái Đất (mét)
-            double dLat = (lat2 - lat1) * Math.PI / 180.0;
-            double dLng = (lng2 - lng1) * Math.PI / 180.0;
-
-            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
-                     + Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0)
-                     * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
-
-            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            return R * c;
         }
 
         // ==========================================

@@ -2,13 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
+using QuanLyNhanSu.Domain;
+using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
-    public class PayslipComplaintAppService : ApplicationService, IPayslipComplaintAppService
+    [Authorize(QuanLyNhanSuPermissions.PayslipComplaint.Default)]
+    public class PayslipComplaintAppService : QuanLyNhanSuAppService, IPayslipComplaintAppService
     {
         private readonly IRepository<PayslipComplaint, Guid> _complaintRepository;
         private readonly IIdentityUserRepository _userRepository;

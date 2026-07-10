@@ -9,10 +9,11 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
 using QuanLyNhanSu.Domain; // Cho UserKey
+using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
-    [Authorize]
+    [Authorize(QuanLyNhanSuPermissions.LeaveRequest.Default)]
     public class LeaveRequestAppService :
         CrudAppService<
             LeaveRequest, 

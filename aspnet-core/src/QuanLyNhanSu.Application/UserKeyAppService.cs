@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authorization;
 using QuanLyNhanSu.Domain;
 using QuanLyNhanSu.Application.Contracts;
+using QuanLyNhanSu.Permissions;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.DependencyInjection;
@@ -15,6 +17,7 @@ namespace QuanLyNhanSu.Application;
 /// <summary>
 /// Application Service quản lý User Key
 /// </summary>
+[Authorize(QuanLyNhanSuPermissions.UserKey.Default)]
 public class UserKeyAppService : ApplicationService, ITransientDependency
 {
     private readonly IRepository<UserKey, Guid> _userKeyRepository;

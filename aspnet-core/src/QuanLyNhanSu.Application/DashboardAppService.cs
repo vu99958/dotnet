@@ -5,14 +5,16 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
+using Volo.Abp.Identity;
 using QuanLyNhanSu.Domain;
+using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
     /// <summary>
     /// Service thống kê cho Dashboard — chỉ Admin/SuperAdmin được phép gọi.
     /// </summary>
-    [Authorize]
+    [Authorize(QuanLyNhanSuPermissions.Dashboard.Default)]
     public class DashboardAppService : QuanLyNhanSuAppService, IDashboardAppService
     {
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;

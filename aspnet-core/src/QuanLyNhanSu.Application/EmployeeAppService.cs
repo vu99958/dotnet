@@ -8,11 +8,12 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Identity;
 using Volo.Abp.Domain.Repositories;
 using QuanLyNhanSu.Domain;
+using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
-    [Authorize] 
-    public class EmployeeAppService : ApplicationService
+    [Authorize(QuanLyNhanSuPermissions.Employee.Default)] 
+    public class EmployeeAppService : QuanLyNhanSuAppService
     {
         private readonly IdentityUserManager _userManager;
         private readonly IIdentityUserRepository _userRepository;

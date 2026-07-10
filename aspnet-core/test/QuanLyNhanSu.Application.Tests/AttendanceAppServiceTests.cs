@@ -5,14 +5,16 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using NSubstitute;
 using QuanLyNhanSu.Domain;
+using QuanLyNhanSu.Services;
 using Shouldly;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Guids;
 using Volo.Abp.Identity;
+using Volo.Abp.Users;
 using Xunit;
 
-namespace QuanLyNhanSu
+namespace QuanLyNhanSu.Tests
 {
     /// <summary>
     /// Unit Test kiểm chứng tính năng Đồng bộ dữ liệu Chấm công (Real Data Format).
@@ -25,6 +27,7 @@ namespace QuanLyNhanSu
         private readonly IRepository<UserKey, Guid> _userKeyRepository;
         private readonly IRepository<Branch, Guid> _branchRepository;
         private readonly IRepository<LeaveRequest, Guid> _leaveRequestRepository;
+        private readonly AttendanceManager _attendanceManager;
         private readonly IGuidGenerator _guidGenerator;
 
         public AttendanceAppServiceTests()
@@ -34,6 +37,7 @@ namespace QuanLyNhanSu
             _userKeyRepository = Substitute.For<IRepository<UserKey, Guid>>();
             _branchRepository = Substitute.For<IRepository<Branch, Guid>>();
             _leaveRequestRepository = Substitute.For<IRepository<LeaveRequest, Guid>>();
+            _attendanceManager = Substitute.ForPartsOf<AttendanceManager>(_branchRepository);
             
             _guidGenerator = Substitute.For<IGuidGenerator>();
             _guidGenerator.Create().Returns(Guid.NewGuid());
@@ -46,7 +50,8 @@ namespace QuanLyNhanSu
                 _userRepository,
                 _userKeyRepository,
                 _branchRepository,
-                _leaveRequestRepository
+                _leaveRequestRepository,
+                _attendanceManager
             )
             {
                 LazyServiceProvider = lazyServiceProvider

@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
+using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
+    [Authorize(QuanLyNhanSuPermissions.Payslip.Default)]
     public class PayslipAppService : QuanLyNhanSuAppService, IPayslipAppService
     {
         private readonly IRepository<SalaryProfile, Guid> _salaryProfileRepository;

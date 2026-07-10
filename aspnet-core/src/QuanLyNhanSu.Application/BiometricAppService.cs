@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using QuanLyNhanSu.Domain;
+using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
 {
@@ -15,6 +16,7 @@ namespace QuanLyNhanSu
     /// Nhiệm vụ: Nhận dữ liệu vân tay/khuôn mặt từ Desktop Client, lưu vào DB,
     /// và phục vụ việc đồng bộ chéo giữa các máy chấm công.
     /// </summary>
+    [Authorize(QuanLyNhanSuPermissions.Biometric.Default)]
     public class BiometricAppService : QuanLyNhanSuAppService, IBiometricAppService
     {
         private readonly IRepository<BiometricTemplate, Guid> _biometricRepository;
