@@ -36,7 +36,11 @@ public class UserCreatedEventHandler : ILocalEventHandler<EntityCreatedEventData
 
         try
         {
-            // Kiểm tra xem đã có key chưa (phòng hờ)
+            // BUG-07 FIX: Chờ ngắn để EmployeeAppService.CreateAccountAsync insert key trước (nếu có).
+            // Nếu EmployeeAppService đã tạo key (với role đúng từ Admin), ta bỏ qua.
+            await Task.Delay(500);
+            
+            // Kiểm tra xem đã có key chưa (phòng hờ race condition với EmployeeAppService)
             var existingKey = await _userKeyRepository.FirstOrDefaultAsync(x => x.UserId == user.Id);
             if (existingKey == null)
             {
@@ -52,6 +56,10 @@ public class UserCreatedEventHandler : ILocalEventHandler<EntityCreatedEventData
 
                 await _userKeyRepository.InsertAsync(userKey);
                 _logger.LogInformation($"Successfully generated UserKey for user {user.UserName} ({user.Id}).");
+            }
+            else
+            {
+                _logger.LogInformation($"UserKey already exists for user {user.UserName} ({user.Id}), skipping auto-generation.");
             }
         }
         catch (Exception ex)

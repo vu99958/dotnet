@@ -367,34 +367,31 @@ namespace QuanLyNhanSu.DesktopClient
             {
                 dgvBranches.Rows.Clear();
 
-                using (var client = CreateHttpClient())
-                {
-                    var response = await client.GetAsync("/api/app/branch");
+                var response = await Services.ApiClient.GetAsync("api/app/branch", _userToken);
 
-                    if (response.IsSuccessStatusCode)
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    using (JsonDocument doc = JsonDocument.Parse(jsonString))
                     {
-                        var jsonString = await response.Content.ReadAsStringAsync();
-                        using (JsonDocument doc = JsonDocument.Parse(jsonString))
+                        foreach (JsonElement item in doc.RootElement.EnumerateArray())
                         {
-                            foreach (JsonElement item in doc.RootElement.EnumerateArray())
-                            {
-                                dgvBranches.Rows.Add(
-                                    item.GetProperty("id").GetString() ?? "",
-                                    item.GetProperty("name").GetString() ?? "",
-                                    item.GetProperty("latitude").GetDouble().ToString("F4"),
-                                    item.GetProperty("longitude").GetDouble().ToString("F4"),
-                                    item.GetProperty("radiusInMeters").GetInt32().ToString()
-                                );
-                            }
+                            dgvBranches.Rows.Add(
+                                item.GetProperty("id").GetString() ?? "",
+                                item.GetProperty("name").GetString() ?? "",
+                                item.GetProperty("latitude").GetDouble().ToString("F4"),
+                                item.GetProperty("longitude").GetDouble().ToString("F4"),
+                                item.GetProperty("radiusInMeters").GetInt32().ToString()
+                            );
                         }
-                        lblStatus.Text = $"✅ Đã tải {dgvBranches.Rows.Count} chi nhánh.";
-                        lblStatus.ForeColor = PrimaryGreen;
                     }
-                    else
-                    {
-                        lblStatus.Text = "❌ Lỗi tải danh sách: " + response.StatusCode;
-                        lblStatus.ForeColor = DangerRed;
-                    }
+                    lblStatus.Text = $"✅ Đã tải {dgvBranches.Rows.Count} chi nhánh.";
+                    lblStatus.ForeColor = PrimaryGreen;
+                }
+                else
+                {
+                    lblStatus.Text = "❌ Lỗi tải danh sách: " + response.StatusCode;
+                    lblStatus.ForeColor = DangerRed;
                 }
             }
             catch (Exception ex)
@@ -413,23 +410,20 @@ namespace QuanLyNhanSu.DesktopClient
             try
             {
                 var payload = BuildPayload();
+                var content = new StringContent(payload, Encoding.UTF8, "application/json");
+                
+                var response = await Services.ApiClient.PostAsync("api/app/branch", content, _userToken);
 
-                using (var client = CreateHttpClient())
+                if (response.IsSuccessStatusCode)
                 {
-                    var content = new StringContent(payload, Encoding.UTF8, "application/json");
-                    var response = await client.PostAsync("/api/app/branch", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Thêm chi nhánh thành công!", "Thành Công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        ClearForm();
-                        await LoadBranchListAsync();
-                    }
-                    else
-                    {
-                        var error = await response.Content.ReadAsStringAsync();
-                        MessageBox.Show("Lỗi: " + error, "Thất Bại", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
+                    MessageBox.Show("Thêm chi nhánh thành công!", "Thành Công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearForm();
+                    await LoadBranchListAsync();
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show("Lỗi: " + error, "Thất Bại", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
@@ -454,23 +448,20 @@ namespace QuanLyNhanSu.DesktopClient
             try
             {
                 var payload = BuildPayload();
+                var content = new StringContent(payload, Encoding.UTF8, "application/json");
+                
+                var response = await Services.ApiClient.PutAsync($"api/app/branch/{_selectedBranchId}", content, _userToken);
 
-                using (var client = CreateHttpClient())
+                if (response.IsSuccessStatusCode)
                 {
-                    var content = new StringContent(payload, Encoding.UTF8, "application/json");
-                    var response = await client.PutAsync($"/api/app/branch/{_selectedBranchId}", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Cập nhật thành công!", "Thành Công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        ClearForm();
-                        await LoadBranchListAsync();
-                    }
-                    else
-                    {
-                        var error = await response.Content.ReadAsStringAsync();
-                        MessageBox.Show("Lỗi: " + error, "Thất Bại", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
+                    MessageBox.Show("Cập nhật thành công!", "Thành Công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearForm();
+                    await LoadBranchListAsync();
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show("Lỗi: " + error, "Thất Bại", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
@@ -501,21 +492,18 @@ namespace QuanLyNhanSu.DesktopClient
 
             try
             {
-                using (var client = CreateHttpClient())
-                {
-                    var response = await client.DeleteAsync($"/api/app/branch/{_selectedBranchId}");
+                var response = await Services.ApiClient.DeleteAsync($"api/app/branch/{_selectedBranchId}", _userToken);
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Đã xóa thành công!", "Thành Công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        ClearForm();
-                        await LoadBranchListAsync();
-                    }
-                    else
-                    {
-                        var error = await response.Content.ReadAsStringAsync();
-                        MessageBox.Show("Lỗi: " + error, "Thất Bại", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
+                if (response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Đã xóa thành công!", "Thành Công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearForm();
+                    await LoadBranchListAsync();
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show("Lỗi: " + error, "Thất Bại", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
@@ -527,19 +515,6 @@ namespace QuanLyNhanSu.DesktopClient
         // ==========================================
         // HÀM TIỆN ÍCH
         // ==========================================
-
-        /// <summary>
-        /// Tạo HttpClient với Bearer Token và bỏ qua SSL dev
-        /// </summary>
-        private HttpClient CreateHttpClient()
-        {
-            var handler = new HttpClientHandler();
-            handler.ServerCertificateCustomValidationCallback = (s, c, ch, ssl) => true;
-            var client = new HttpClient(handler);
-            client.BaseAddress = new Uri("https://localhost:44387/");
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _userToken);
-            return client;
-        }
 
         /// <summary>
         /// Kiểm tra dữ liệu nhập hợp lệ

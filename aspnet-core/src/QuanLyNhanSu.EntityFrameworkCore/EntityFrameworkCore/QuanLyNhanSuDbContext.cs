@@ -80,24 +80,32 @@ public class QuanLyNhanSuDbContext :
         {
             b.ToTable("AppAttendanceRecords"); // Tên bảng sẽ tạo trong SQL Server
             b.ConfigureByConvention(); // Tự động cấu hình các cột chuẩn của ABP
+            // DESIGN-02: Mỗi nhân viên chỉ có 1 bản ghi chấm công/ngày
+            b.HasIndex(x => new { x.UserId, x.WorkDate }).IsUnique();
         });
 
         builder.Entity<LeaveRequest>(b =>
         {
             b.ToTable("AppLeaveRequests");
             b.ConfigureByConvention();
+            // DESIGN-02: Tăng tốc query nghỉ phép theo user + trạng thái
+            b.HasIndex(x => new { x.UserId, x.Status });
         });
 
         builder.Entity<SalaryProfile>(b =>
         {
             b.ToTable("AppSalaryProfiles");
             b.ConfigureByConvention();
+            // DESIGN-02: Mỗi nhân viên chỉ có 1 cấu hình lương
+            b.HasIndex(x => x.UserId).IsUnique();
         });
 
         builder.Entity<Payslip>(b =>
         {
             b.ToTable("AppPayslips");
             b.ConfigureByConvention();
+            // DESIGN-02: Mỗi nhân viên chỉ có 1 phiếu lương/tháng
+            b.HasIndex(x => new { x.UserId, x.Month, x.Year }).IsUnique();
         });
 
         builder.Entity<PayslipComplaint>(b =>

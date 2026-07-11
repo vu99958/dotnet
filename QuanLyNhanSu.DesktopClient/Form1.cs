@@ -418,8 +418,9 @@ namespace QuanLyNhanSu.DesktopClient
                         this.Hide(); 
 
                     // Tạo và mở Form Dashboard, nhớ truyền token (hoặc key) qua
-                        FormDashboard dashboard = new FormDashboard(userToken); 
-                            dashboard.Show();
+                    // BUG FIX: Truyền txtLoginKey.Text (chính là Key người dùng nhập) thay vì biến userToken (đang rỗng)
+                    FormDashboard dashboard = new FormDashboard(txtLoginKey.Text); 
+                    dashboard.Show();
                     }
                     else
                     {

@@ -11,4 +11,13 @@ namespace QuanLyNhanSu
         public string? BranchName { get; set; }
         public DateTime CreationTime { get; set; }
     }
+
+    /// <summary>
+    /// DTO để cập nhật thông tin cá nhân (BUG-08 FIX)
+    /// </summary>
+    public class UpdateMyProfileDto
+    {
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; }
+    }
 }

@@ -41,12 +41,17 @@ namespace QuanLyNhanSu
             string roleDisplay = string.Join(", ", roles);
 
             var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == userId.Value);
-            if (string.IsNullOrEmpty(roleDisplay))
+            
+            // BUG FIX: LUÔN LUÔN ưu tiên quyền từ UserKey (nếu có) vì hệ thống 
+            // hiện tại phân quyền (admin/user) dựa trên bảng UserKey. 
+            // Nếu không ghi đè, Identity role mặc định (vd: "user") sẽ làm ẩn giao diện Admin.
+            if (userKey != null && !string.IsNullOrEmpty(userKey.Role))
             {
-                if (userKey != null)
-                {
-                    roleDisplay = userKey.Role; // Lấy đúng cái Role "admin" mà bạn đã tạo
-                }
+                roleDisplay = userKey.Role; 
+            }
+            else if (string.IsNullOrEmpty(roleDisplay))
+            {
+                roleDisplay = "user"; // Fallback
             }
 
             string branchName = "Chưa phân bổ";
@@ -65,6 +70,29 @@ namespace QuanLyNhanSu
                 BranchName = branchName,
                 CreationTime = user.CreationTime
             };
+        }
+
+        /// <summary>
+        /// Cập nhật thông tin cá nhân (Email, Phone).
+        /// BUG-08 FIX: Thêm API để nút "Lưu" trên WinForms hoạt động thật.
+        /// </summary>
+        public async Task UpdateMyProfileAsync(UpdateMyProfileDto input)
+        {
+            var userId = CurrentUser.Id;
+            if (userId == null)
+                throw new UnauthorizedAccessException("Lỗi bảo mật: Không tìm thấy thông tin.");
+
+            var user = await _userManager.FindByIdAsync(userId.Value.ToString());
+            if (user == null)
+                throw new InvalidOperationException("Không tìm thấy tài khoản.");
+
+            if (!string.IsNullOrWhiteSpace(input.Email))
+                await _userManager.SetEmailAsync(user, input.Email);
+
+            if (!string.IsNullOrWhiteSpace(input.PhoneNumber))
+                await _userManager.SetPhoneNumberAsync(user, input.PhoneNumber);
+
+            await _userManager.UpdateAsync(user);
         }
     }
 }   

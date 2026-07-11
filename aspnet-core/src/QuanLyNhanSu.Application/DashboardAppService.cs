@@ -50,7 +50,11 @@ namespace QuanLyNhanSu
             var todayRecords = await _attendanceRepository.GetListAsync(
                 x => x.WorkDate == today);
 
-            int onTime = todayRecords.Count(r => r.LateMinutes == 0 && r.EarlyLeaveMinutes == 0);
+            // BUG-13 FIX: Chỉ tính "Đúng giờ" khi có cả CheckIn VÀ CheckOut
+            // Nhân viên quên CheckOut không nên được đếm là "Đúng giờ"
+            int onTime = todayRecords.Count(r => 
+                r.CheckInTime != null && r.CheckOutTime != null && 
+                r.LateMinutes == 0 && r.EarlyLeaveMinutes == 0);
             int lateOrEarly = todayRecords.Count - onTime;
 
             return new TodayAttendanceStatsDto

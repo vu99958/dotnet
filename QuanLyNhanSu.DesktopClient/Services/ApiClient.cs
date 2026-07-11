@@ -44,7 +44,16 @@ namespace QuanLyNhanSu.DesktopClient.Services
             
             if (!string.IsNullOrEmpty(token))
             {
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                // Phân biệt Token JWT và User Key
+                // JWT Token luôn có dấu '.' (chia làm 3 phần). User Key thì không có.
+                if (!token.Contains("."))
+                {
+                    request.Headers.Add("X-User-Key", token.Trim());
+                }
+                else
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                }
             }
             
             if (content != null)

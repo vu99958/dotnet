@@ -450,17 +450,14 @@ namespace QuanLyNhanSu.DesktopClient
             try
             {
                 if (string.IsNullOrEmpty(userToken)) return;
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (s, c, ch, ssl) => true;
-                using (HttpClient client = new HttpClient(handler))
+                
+                // Sử dụng ApiClient để tự động xử lý Bearer/X-User-Key thay vì HttpClient thủ công
+                HttpResponseMessage response = await ApiClient.GetAsync("api/app/my-profile/my-profile", userToken);
+                
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
-                    
-                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/my-profile/my-profile");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
-                        myCurrentRole = data.GetProperty("roles").GetString()?.ToLower() ?? "user";
+                    var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                    myCurrentRole = data.GetProperty("roles").GetString()?.ToLower() ?? "user";
                         
                         if (myCurrentRole == "admin" || myCurrentRole == "superadmin") 
                         {
@@ -494,7 +491,7 @@ namespace QuanLyNhanSu.DesktopClient
                         lblHeaderTitle.Text = $"Xin chào, {roleText}";
                     }
 
-                    HttpResponseMessage statsRes = await client.GetAsync("https://localhost:44387/api/app/employee/dashboard-stats");
+                    HttpResponseMessage statsRes = await ApiClient.GetAsync("api/app/employee/dashboard-stats", userToken);
                     if (statsRes.IsSuccessStatusCode)
                     {
                         var statsData = JsonSerializer.Deserialize<JsonElement>(await statsRes.Content.ReadAsStringAsync());
@@ -502,7 +499,6 @@ namespace QuanLyNhanSu.DesktopClient
                         lblTotalAdmin.Text = statsData.GetProperty("totalAdmins").GetInt32().ToString();
                         lblTotalUser.Text = statsData.GetProperty("totalUsers").GetInt32().ToString();
                     }
-                }
             } catch { }
         }
     }

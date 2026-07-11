@@ -205,6 +205,12 @@ public class QuanLyNhanSuHttpApiHostModule : AbpModule
         }
         app.UseUnitOfWork();
         app.UseDynamicClaims();
+        
+        // BUG FIX: Chuyển UserKeyAuthenticationMiddleware xuống sau UseDynamicClaims.
+        // Nếu để trên, DynamicClaims của ABP sẽ tự động tải lại Claims từ Database (Identity)
+        // và ghi đè mất các quyền (Role) đặc biệt mà UserKey vừa nạp vào, gây ra lỗi 401 hoặc mất quyền.
+        app.UseMiddleware<UserKeyAuthenticationMiddleware>();
+        
         app.UseAuthorization();
 
         app.UseSwagger();

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
+using QuanLyNhanSu.Domain;
 using QuanLyNhanSu.Permissions;
 
 namespace QuanLyNhanSu
@@ -18,19 +19,22 @@ namespace QuanLyNhanSu
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;
         private readonly IRepository<LeaveRequest, Guid> _leaveRequestRepository;
         private readonly IRepository<IdentityUser, Guid> _userRepository;
+        private readonly IRepository<UserKey, Guid> _userKeyRepository;
 
         public PayslipAppService(
             IRepository<SalaryProfile, Guid> salaryProfileRepository,
             IRepository<Payslip, Guid> payslipRepository,
             IRepository<AttendanceRecord, Guid> attendanceRepository,
             IRepository<LeaveRequest, Guid> leaveRequestRepository,
-            IRepository<IdentityUser, Guid> userRepository)
+            IRepository<IdentityUser, Guid> userRepository,
+            IRepository<UserKey, Guid> userKeyRepository)
         {
             _salaryProfileRepository = salaryProfileRepository;
             _payslipRepository = payslipRepository;
             _attendanceRepository = attendanceRepository;
             _leaveRequestRepository = leaveRequestRepository;
             _userRepository = userRepository;
+            _userKeyRepository = userKeyRepository;
         }
 
         /// <summary>
@@ -79,10 +83,11 @@ namespace QuanLyNhanSu
 
                 // ──────────────────────────────────────────────
                 // 1. NGÀY CÔNG THỰC TẾ
+                // BUG-04 FIX: Không filter theo Status (vì Status không nhất quán giữa
+                // CheckIn thủ công vs SyncBulkData). Thay bằng CheckInTime != null.
                 // ──────────────────────────────────────────────
                 var userAttendances = attendances
-                    .Where(x => x.UserId == userId &&
-                           (x.Status == "Đúng giờ" || x.Status == "Đi trễ" || x.Status == "Về sớm" || x.Status == "Đi trễ & Về sớm"))
+                    .Where(x => x.UserId == userId && x.CheckInTime != null)
                     .ToList();
                 
                 double actualWorkDays = 0;
@@ -187,10 +192,15 @@ namespace QuanLyNhanSu
         {
             var payslips = await _payslipRepository.GetListAsync(x => x.Month == month && x.Year == year);
             
-            // Nếu không phải admin, chỉ lấy phiếu lương của chính mình
-            if (CurrentUser.Id.HasValue && !CurrentUser.Roles.Contains("admin"))
+            // Phân quyền dùng UserKey.Role (thống nhất toàn hệ thống)
+            if (CurrentUser.Id.HasValue)
             {
-                payslips = payslips.Where(x => x.UserId == CurrentUser.Id.Value).ToList();
+                var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == CurrentUser.Id.Value);
+                bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
+                if (!isAdmin)
+                {
+                    payslips = payslips.Where(x => x.UserId == CurrentUser.Id.Value).ToList();
+                }
             }
 
             var users = await _userRepository.GetListAsync();

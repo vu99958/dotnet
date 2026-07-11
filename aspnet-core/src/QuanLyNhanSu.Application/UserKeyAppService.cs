@@ -40,11 +40,11 @@ public class UserKeyAppService : ApplicationService, ITransientDependency
         if (CurrentUser?.Id == null)
             throw new InvalidOperationException("DEBUG: CurrentUser.Id đang NULL — lỗi nằm ở cấu hình JWT claims, không phải ở logic tạo key.");
             
-        // Validate role
-        var validRoles = new[] { "user", "admin", "super_admin" };
+        // Validate role — Chấp nhận cả "super_admin" (legacy) và "superadmin" (chuẩn hệ thống)
+        var validRoles = new[] { "user", "admin", "super_admin", "superadmin" };
         if (!Array.Exists(validRoles, element => element == input.Role))
         {
-            throw new InvalidOperationException($"Role '{input.Role}' không hợp lệ. Các role hợp lệ: user, admin, super_admin");
+            throw new InvalidOperationException($"Role '{input.Role}' không hợp lệ. Các role hợp lệ: user, admin, superadmin");
         }
 
         var userId = CurrentUser!.Id!.Value;

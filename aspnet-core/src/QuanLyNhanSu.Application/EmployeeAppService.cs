@@ -189,8 +189,11 @@ namespace QuanLyNhanSu
             string newKeyString = Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
             
             // Xóa dòng cũ và tạo dòng mới (cách an toàn nhất để reset)
+            // BUG-12 FIX: Copy lại BranchId để không mất chi nhánh khi reset key
+            var oldBranchId = keyEntity.BranchId;
             await _userKeyRepository.DeleteAsync(keyEntity);
             var newKey = new UserKey(GuidGenerator.Create(), id, newKeyString, targetRole);
+            newKey.BranchId = oldBranchId;
             await _userKeyRepository.InsertAsync(newKey);
 
             return newKeyString; // Trả Key mới về cho WinForms hiển thị

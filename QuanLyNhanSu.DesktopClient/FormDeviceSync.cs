@@ -147,7 +147,7 @@ namespace QuanLyNhanSu.DesktopClient
             txtIpAddress = new TextBox { Text = "192.168.1.201", Location = new Point(40, 25), Width = 160, Font = new Font("Segoe UI", 10F), BorderStyle = BorderStyle.FixedSingle };
 
             Label lblPort = new Label { Text = "Port:", Location = new Point(210, 28), AutoSize = true, Font = new Font("Segoe UI", 10F) };
-            nudPort = new NumericUpDown { Value = 4370, Minimum = 1, Maximum = 65535, Location = new Point(260, 25), Width = 70, Font = new Font("Segoe UI", 10F) };
+            nudPort = new NumericUpDown { Minimum = 1, Maximum = 65535, Value = 4370, Location = new Point(260, 25), Width = 70, Font = new Font("Segoe UI", 10F) };
 
             btnConnect = CreateButton("🔗 Kết Nối", new Point(345, 22), 110, _successGreen);
             btnConnect.Click += BtnConnect_Click;

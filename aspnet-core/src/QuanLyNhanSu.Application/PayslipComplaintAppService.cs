@@ -16,13 +16,16 @@ namespace QuanLyNhanSu
     {
         private readonly IRepository<PayslipComplaint, Guid> _complaintRepository;
         private readonly IIdentityUserRepository _userRepository;
+        private readonly IRepository<UserKey, Guid> _userKeyRepository;
 
         public PayslipComplaintAppService(
             IRepository<PayslipComplaint, Guid> complaintRepository,
-            IIdentityUserRepository userRepository)
+            IIdentityUserRepository userRepository,
+            IRepository<UserKey, Guid> userKeyRepository)
         {
             _complaintRepository = complaintRepository;
             _userRepository = userRepository;
+            _userKeyRepository = userKeyRepository;
         }
 
         public async Task<List<PayslipComplaintDto>> GetMyComplaintsAsync()
@@ -53,7 +56,15 @@ namespace QuanLyNhanSu
 
         public async Task<List<PayslipComplaintDto>> GetPendingListAsync()
         {
-            // Admin only
+            // BUG-11 FIX: Kiểm tra quyền Admin trước khi trả dữ liệu
+            var currentUserId = CurrentUser.Id;
+            if (currentUserId == null) throw new UnauthorizedAccessException("Chưa đăng nhập");
+
+            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId.Value);
+            bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
+            if (!isAdmin)
+                throw new UnauthorizedAccessException("Chỉ Admin mới có quyền xem danh sách khiếu nại.");
+
             var complaints = await _complaintRepository.GetListAsync(c => c.Status == "Pending");
             var users = await _userRepository.GetListAsync();
 
@@ -94,7 +105,13 @@ namespace QuanLyNhanSu
 
         public async Task ResolveAsync(Guid id, ResolveComplaintDto input)
         {
-            if (!CurrentUser.Roles.Contains("admin"))
+            // BUG-03 FIX: Dùng UserKey.Role thay vì CurrentUser.Roles
+            var currentUserId = CurrentUser.Id;
+            if (currentUserId == null) throw new UnauthorizedAccessException("Chưa đăng nhập");
+
+            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId.Value);
+            bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
+            if (!isAdmin)
                 throw new UnauthorizedAccessException("Chỉ Admin mới có quyền giải quyết khiếu nại.");
 
             var complaint = await _complaintRepository.GetAsync(id);

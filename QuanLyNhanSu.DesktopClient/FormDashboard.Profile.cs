@@ -13,7 +13,7 @@ namespace QuanLyNhanSu.DesktopClient
         // ==========================================
         // LOGIC HỒ SƠ (PROFILE)
         // ==========================================
-        private void BtnEditProfile_Click(object? sender, EventArgs e)
+        private async void BtnEditProfile_Click(object? sender, EventArgs e)
         {
             isEditMode = !isEditMode;
             if (isEditMode)
@@ -25,11 +25,37 @@ namespace QuanLyNhanSu.DesktopClient
             }
             else
             {
+                // BUG-08 FIX: Gọi API cập nhật thật thay vì chỉ MessageBox
+                try
+                {
+                    var payload = new
+                    {
+                        email = txtEditEmail.Text,
+                        phoneNumber = txtEditPhone.Text
+                    };
+                    var json = System.Text.Json.JsonSerializer.Serialize(payload);
+                    var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                    
+                    HttpResponseMessage response = await ApiClient.PostAsync("api/app/my-profile/update-my-profile", content, userToken);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show("Cập nhật hồ sơ thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Lỗi khi cập nhật: " + await response.Content.ReadAsStringAsync(), "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Lỗi kết nối: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                
                 txtEditEmail.ReadOnly = true; txtEditEmail.BorderStyle = BorderStyle.None;
                 txtEditPhone.ReadOnly = true; txtEditPhone.BorderStyle = BorderStyle.None;
                 txtEditAddress.ReadOnly = true; txtEditAddress.BorderStyle = BorderStyle.None;
                 btnEditProfile.Text = "✍️ CHỈNH SỬA HỒ SƠ"; btnEditProfile.BackColor = Color.FromArgb(32, 161, 68);
-                MessageBox.Show("Dữ liệu đã được ghi nhận trên giao diện!", "Lưu thành công");
             }
         }
 

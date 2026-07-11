@@ -91,26 +91,20 @@ namespace QuanLyNhanSu.DesktopClient
             // Phân quyền giao diện: Ẩn nút Duyệt đơn nếu không phải Admin
             try
             {
-                HttpClientHandler handler = new HttpClientHandler();
-                handler.ServerCertificateCustomValidationCallback = (s, c, ch, ssl) => true;
-                using (HttpClient client = new HttpClient(handler))
+                HttpResponseMessage response = await ApiClient.GetAsync("api/app/my-profile/my-profile", _userToken);
+                if (response.IsSuccessStatusCode)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _userToken);
-                    HttpResponseMessage response = await client.GetAsync("https://localhost:44387/api/app/my-profile/my-profile");
-                    if (response.IsSuccessStatusCode)
+                    var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
+                    string myRole = data.GetProperty("roles").GetString()?.ToLower() ?? "user";
+                    if (myRole == "admin" || myRole == "superadmin")
                     {
-                        var data = JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync());
-                        string myRole = data.GetProperty("roles").GetString()?.ToLower() ?? "user";
-                        if (myRole == "admin" || myRole == "superadmin")
-                        {
-                            _isAdmin = true;
-                        }
-                        else
-                        {
-                            _isAdmin = false;
-                            btnApprove.Visible = false;
-                            btnReject.Visible = false;
-                        }
+                        _isAdmin = true;
+                    }
+                    else
+                    {
+                        _isAdmin = false;
+                        btnApprove.Visible = false;
+                        btnReject.Visible = false;
                     }
                 }
             }

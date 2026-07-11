@@ -54,20 +54,18 @@ namespace QuanLyNhanSu
             var listToSave = new List<AttendanceRecord>();
             var listToUpdate = new List<AttendanceRecord>();
 
-            var groupedData = inputList.GroupBy(x => x.UserName).ToList();
+            var groupedData = inputList.GroupBy(x => new { x.UserName, WorkDate = x.TimeStamp.Date }).ToList();
 
             foreach (var group in groupedData)
             {
-                if (!userDictionary.TryGetValue(group.Key, out Guid userId)) continue;
+                if (!userDictionary.TryGetValue(group.Key.UserName, out Guid userId)) continue;
 
                 var checkIn = group.Where(x => x.CheckType == "IN").OrderBy(x => x.TimeStamp).FirstOrDefault();
                 var checkOut = group.Where(x => x.CheckType == "OUT").OrderByDescending(x => x.TimeStamp).FirstOrDefault();
 
                 if (checkIn == null && checkOut == null) continue;
 
-                // Sử dụng thời gian của CheckIn hoặc CheckOut làm ngày làm việc
-                var referenceTime = checkIn?.TimeStamp ?? checkOut!.TimeStamp;
-                var workDate = referenceTime.Date;
+                var workDate = group.Key.WorkDate;
 
                 // Kiểm tra xem đã có bản ghi nào trong ngày chưa
                 var existingRecord = await _attendanceRepository.FirstOrDefaultAsync(x => x.UserId == userId && x.WorkDate == workDate);
@@ -232,7 +230,7 @@ namespace QuanLyNhanSu
             // Xử lý hiển thị kép "Đi trễ & Về sớm"
             if (statusMessage == "Về sớm")
             {
-                if (record.Status == "Đi trễ")
+                if (record.Status.StartsWith("Đi trễ"))
                     record.Status = "Đi trễ & Về sớm";
                 else
                     record.Status = "Về sớm";
