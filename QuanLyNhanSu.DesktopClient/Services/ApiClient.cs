@@ -1,7 +1,9 @@
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
 namespace QuanLyNhanSu.DesktopClient.Services
 {
@@ -12,14 +14,25 @@ namespace QuanLyNhanSu.DesktopClient.Services
     public static class ApiClient
     {
         private static readonly HttpClient _httpClient;
-        private const string BASE_URL = "https://localhost:44387/";
+        public static readonly string BASE_URL;
 
         static ApiClient()
         {
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+
+            BASE_URL = configuration.GetSection("ApiSettings:BaseUrl").Value ?? "https://localhost:44387/";
+            bool isDevelopment = configuration.GetValue<bool>("ApiSettings:IsDevelopment");
+
             var handler = new HttpClientHandler();
             
-            // Bỏ qua lỗi chứng chỉ SSL giả (Dành cho môi trường dev)
-            handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+            if (isDevelopment)
+            {
+                // Bỏ qua lỗi chứng chỉ SSL giả (Dành cho môi trường dev)
+                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+            }
             
             _httpClient = new HttpClient(handler)
             {

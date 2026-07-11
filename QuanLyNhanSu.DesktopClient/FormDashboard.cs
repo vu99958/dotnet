@@ -42,6 +42,7 @@ namespace QuanLyNhanSu.DesktopClient
         private Button btnViewProfile = null!, btnLeaveManagement = null!, btnLogoutDash = null!, btnDeviceSync = null!;
         private Label lblHeaderTitle = null!, lblHeaderTime = null!;
         private System.Windows.Forms.Timer timerHeader = null!;
+        private System.Windows.Forms.Timer timerOfflineSync = null!;
 
         // CÁC BIẾN CHO THỐNG KÊ DASHBOARD
         private Label lblTotalEmp = null!, lblTotalAdmin = null!, lblTotalUser = null!;
@@ -450,7 +451,11 @@ namespace QuanLyNhanSu.DesktopClient
             try
             {
                 if (string.IsNullOrEmpty(userToken)) return;
-                
+                // Khởi tạo Timer đồng bộ offline (5 phút = 300,000 ms)
+                timerOfflineSync = new System.Windows.Forms.Timer { Interval = 300000 };
+                timerOfflineSync.Tick += async (s, ev) => await SyncOfflineAttendanceAsync();
+                timerOfflineSync.Start();
+
                 // Sử dụng ApiClient để tự động xử lý Bearer/X-User-Key thay vì HttpClient thủ công
                 HttpResponseMessage response = await ApiClient.GetAsync("api/app/my-profile/my-profile", userToken);
                 
@@ -500,6 +505,48 @@ namespace QuanLyNhanSu.DesktopClient
                         lblTotalUser.Text = statsData.GetProperty("totalUsers").GetInt32().ToString();
                     }
             } catch { }
+        }
+
+        private async Task SyncOfflineAttendanceAsync()
+        {
+            try
+            {
+                var records = OfflineAttendanceManager.GetRecords();
+                if (records.Count == 0) return;
+
+                bool allSuccess = true;
+                foreach (var record in records)
+                {
+                    HttpResponseMessage response;
+                    var emptyContent = new StringContent("", Encoding.UTF8, "application/json");
+
+                    if (record.Action == "check-in")
+                    {
+                        string latStr = record.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0";
+                        string lngStr = record.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0";
+                        response = await ApiClient.PostAsync($"api/app/attendance/check-in?userLat={latStr}&userLng={lngStr}", emptyContent, userToken);
+                    }
+                    else
+                    {
+                        response = await ApiClient.PostAsync("api/app/attendance/check-out", emptyContent, userToken);
+                    }
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        allSuccess = false;
+                    }
+                }
+
+                if (allSuccess)
+                {
+                    OfflineAttendanceManager.ClearRecords();
+                    // Optionally, we can refresh the data if the user is on the attendance tab, but not strictly necessary here.
+                }
+            }
+            catch
+            {
+                // Vẫn lỗi mạng, bỏ qua chờ lần tick sau
+            }
         }
     }
 }

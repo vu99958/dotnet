@@ -244,6 +244,9 @@ namespace QuanLyNhanSu.DesktopClient
 
         private async Task PerformCheckInOutAsync(string action)
         {
+            double? userLat = null;
+            double? userLng = null;
+
             try
             {
                 HttpResponseMessage response;
@@ -253,8 +256,6 @@ namespace QuanLyNhanSu.DesktopClient
                         // 🔒 BẢO MẬT: KHÔNG còn tọa độ fallback cứng.
                         // Nếu không lấy được GPS → CHẶN check-in ngay lập tức.
                         // ==========================================
-                        double? userLat = null;
-                        double? userLng = null;
 
                         try
                         {
@@ -322,6 +323,19 @@ namespace QuanLyNhanSu.DesktopClient
                         var errorContent = await response.Content.ReadAsStringAsync();
                         MessageBox.Show($"Thất bại: Mặc dù đã click nhưng không thành công.\n(Status {response.StatusCode})\n{errorContent}", "Lỗi Chấm Công", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
+            }
+            catch (HttpRequestException)
+            {
+                // Bắt lỗi mất mạng
+                var record = new OfflineAttendanceRecord
+                {
+                    Action = action,
+                    Timestamp = DateTime.Now,
+                    Latitude = userLat,
+                    Longitude = userLng
+                };
+                OfflineAttendanceManager.SaveRecord(record);
+                MessageBox.Show("Mất kết nối mạng. Dữ liệu chấm công đã được lưu Offline và sẽ tự động đồng bộ khi có mạng lại.", "Lưu Offline", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
