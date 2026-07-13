@@ -8,6 +8,7 @@ using Volo.Abp.Domain.Repositories;
 using Volo.Abp.EventBus;
 using Volo.Abp.Guids;
 using Volo.Abp.Identity;
+using QuanLyNhanSu.Helpers;
 
 namespace QuanLyNhanSu.Handlers;
 
@@ -36,35 +37,31 @@ public class UserCreatedEventHandler : ILocalEventHandler<EntityCreatedEventData
 
         try
         {
-            // BUG-07 FIX: Chờ ngắn để EmployeeAppService.CreateAccountAsync insert key trước (nếu có).
-            // Nếu EmployeeAppService đã tạo key (với role đúng từ Admin), ta bỏ qua.
-            await Task.Delay(500);
+            var keyString = CryptoHelper.GenerateSecureKey(16);
             
-            // Kiểm tra xem đã có key chưa (phòng hờ race condition với EmployeeAppService)
-            var existingKey = await _userKeyRepository.FirstOrDefaultAsync(x => x.UserId == user.Id);
-            if (existingKey == null)
-            {
-                var keyString = Guid.NewGuid().ToString("N").Substring(0, 16).ToUpper();
-                
-                var userKey = new UserKey(
-                    id: _guidGenerator.Create(),
-                    userId: user.Id,
-                    key: keyString,
-                    role: "user",
-                    description: "Auto-generated key for new user"
-                );
+            var userKey = new UserKey(
+                id: _guidGenerator.Create(),
+                userId: user.Id,
+                key: keyString,
+                role: "user",
+                description: "Auto-generated key for new user"
+            );
 
-                await _userKeyRepository.InsertAsync(userKey);
-                _logger.LogInformation($"Successfully generated UserKey for user {user.UserName} ({user.Id}).");
-            }
-            else
-            {
-                _logger.LogInformation($"UserKey already exists for user {user.UserName} ({user.Id}), skipping auto-generation.");
-            }
+            await _userKeyRepository.InsertAsync(userKey);
+            _logger.LogInformation($"Successfully generated UserKey for user {user.UserName} ({user.Id}).");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error auto-generating UserKey for user {user.UserName} ({user.Id}).");
+            if (ex.InnerException?.Message?.Contains("IX_AppUserKeys_UserId") == true || ex.Message.Contains("IX_AppUserKeys_UserId"))
+            {
+                // DESIGN-02: Bỏ qua nếu có DbUpdateException (báo hiệu Key đã được EmployeeAppService tạo trước đó)
+                // Nhờ Unique Index trên UserId, Database sẽ bảo vệ chúng ta khỏi việc tạo trùng lặp.
+                _logger.LogInformation($"UserKey already exists (Unique Constraint Violation) for user {user.UserName} ({user.Id}), skipping auto-generation.");
+            }
+            else 
+            {
+                _logger.LogError(ex, $"Error auto-generating UserKey for user {user.UserName} ({user.Id}).");
+            }
         }
     }
 }

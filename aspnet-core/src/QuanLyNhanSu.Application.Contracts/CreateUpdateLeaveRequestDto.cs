@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -18,6 +19,6 @@ namespace QuanLyNhanSu
         [StringLength(500)]
         public string Reason { get; set; }
 
-        public string Status { get; set; } = "Pending";
+        public LeaveRequestStatus Status { get; set; } = LeaveRequestStatus.Pending;
     }
 }

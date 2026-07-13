@@ -1,5 +1,6 @@
 using System;
 using Volo.Abp.Domain.Entities;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -9,11 +10,11 @@ namespace QuanLyNhanSu
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public string Reason { get; set; }
-        public string Status { get; set; }
+        public LeaveRequestStatus Status { get; set; }
 
         protected LeaveRequest() { }
 
-        public LeaveRequest(Guid id, Guid userId, DateTime startDate, DateTime endDate, string reason, string status = "Pending") 
+        public LeaveRequest(Guid id, Guid userId, DateTime startDate, DateTime endDate, string reason, LeaveRequestStatus status = LeaveRequestStatus.Pending) 
             : base(id)
         {
             UserId = userId;

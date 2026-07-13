@@ -33,7 +33,7 @@ namespace QuanLyNhanSu
         /// Lưu danh sách mẫu sinh trắc học lên Server.
         /// Logic chống trùng: Nếu đã có (EnrollNumber + TemplateType + FingerIndex) → Cập nhật dữ liệu mới.
         /// </summary>
-        [AllowAnonymous]
+        [Authorize(QuanLyNhanSuPermissions.Biometric.Manage)]
         public async Task<int> UploadTemplatesAsync(List<BiometricTemplateDto> templates)
         {
             if (templates == null || !templates.Any()) return 0;
@@ -85,7 +85,6 @@ namespace QuanLyNhanSu
         // ==========================================
         // 2. LẤY MẪU THEO MÃ NHÂN VIÊN
         // ==========================================
-        [AllowAnonymous]
         public async Task<List<BiometricTemplateDto>> GetTemplatesByEnrollNumberAsync(string enrollNumber)
         {
             var list = await _biometricRepository.GetListAsync(x => x.EnrollNumber == enrollNumber);
@@ -96,7 +95,6 @@ namespace QuanLyNhanSu
         // ==========================================
         // 3. LẤY TOÀN BỘ MẪU (ĐỂ ĐỒNG BỘ XUỐNG MÁY MỚI)
         // ==========================================
-        [AllowAnonymous]
         public async Task<List<BiometricTemplateDto>> GetAllTemplatesAsync()
         {
             var list = await _biometricRepository.GetListAsync();

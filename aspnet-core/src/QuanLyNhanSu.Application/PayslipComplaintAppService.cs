@@ -7,7 +7,9 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
 using QuanLyNhanSu.Domain;
+using QuanLyNhanSu.Domain;
 using QuanLyNhanSu.Permissions;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -16,16 +18,13 @@ namespace QuanLyNhanSu
     {
         private readonly IRepository<PayslipComplaint, Guid> _complaintRepository;
         private readonly IIdentityUserRepository _userRepository;
-        private readonly IRepository<UserKey, Guid> _userKeyRepository;
 
         public PayslipComplaintAppService(
             IRepository<PayslipComplaint, Guid> complaintRepository,
-            IIdentityUserRepository userRepository,
-            IRepository<UserKey, Guid> userKeyRepository)
+            IIdentityUserRepository userRepository)
         {
             _complaintRepository = complaintRepository;
             _userRepository = userRepository;
-            _userKeyRepository = userKeyRepository;
         }
 
         public async Task<List<PayslipComplaintDto>> GetMyComplaintsAsync()
@@ -60,12 +59,9 @@ namespace QuanLyNhanSu
             var currentUserId = CurrentUser.Id;
             if (currentUserId == null) throw new UnauthorizedAccessException("Chưa đăng nhập");
 
-            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId.Value);
-            bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
-            if (!isAdmin)
-                throw new UnauthorizedAccessException("Chỉ Admin mới có quyền xem danh sách khiếu nại.");
+            await AuthorizationService.CheckAsync(QuanLyNhanSuPermissions.PayslipComplaint.Manage);
 
-            var complaints = await _complaintRepository.GetListAsync(c => c.Status == "Pending");
+            var complaints = await _complaintRepository.GetListAsync(c => c.Status == LeaveRequestStatus.Pending);
             var users = await _userRepository.GetListAsync();
 
             return (from c in complaints
@@ -105,14 +101,11 @@ namespace QuanLyNhanSu
 
         public async Task ResolveAsync(Guid id, ResolveComplaintDto input)
         {
-            // BUG-03 FIX: Dùng UserKey.Role thay vì CurrentUser.Roles
+            // Phân quyền chuẩn ABP (Anti Manual-Role-Check)
             var currentUserId = CurrentUser.Id;
             if (currentUserId == null) throw new UnauthorizedAccessException("Chưa đăng nhập");
 
-            var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == currentUserId.Value);
-            bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
-            if (!isAdmin)
-                throw new UnauthorizedAccessException("Chỉ Admin mới có quyền giải quyết khiếu nại.");
+            await AuthorizationService.CheckAsync(QuanLyNhanSuPermissions.PayslipComplaint.Manage);
 
             var complaint = await _complaintRepository.GetAsync(id);
             complaint.Status = input.Status;

@@ -1,5 +1,6 @@
 using System;
 using Volo.Abp.Application.Dtos;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -11,7 +12,7 @@ namespace QuanLyNhanSu
         public int Month { get; set; }
         public int Year { get; set; }
         public string Reason { get; set; }
-        public string Status { get; set; }
+        public LeaveRequestStatus Status { get; set; }
         public string AdminReply { get; set; }
         public DateTime CreationTime { get; set; }
     }
@@ -26,7 +27,7 @@ namespace QuanLyNhanSu
 
     public class ResolveComplaintDto
     {
-        public string Status { get; set; } // "Resolved" hoặc "Rejected"
+        public LeaveRequestStatus Status { get; set; } // "Resolved" hoặc "Rejected"
         public string AdminReply { get; set; }
     }
 }

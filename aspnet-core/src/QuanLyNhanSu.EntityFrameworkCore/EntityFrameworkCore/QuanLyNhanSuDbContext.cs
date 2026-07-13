@@ -82,6 +82,7 @@ public class QuanLyNhanSuDbContext :
             b.ConfigureByConvention(); // Tự động cấu hình các cột chuẩn của ABP
             // DESIGN-02: Mỗi nhân viên chỉ có 1 bản ghi chấm công/ngày
             b.HasIndex(x => new { x.UserId, x.WorkDate }).IsUnique();
+            b.Property(x => x.Status).HasConversion<string>();
         });
 
         builder.Entity<LeaveRequest>(b =>
@@ -90,6 +91,7 @@ public class QuanLyNhanSuDbContext :
             b.ConfigureByConvention();
             // DESIGN-02: Tăng tốc query nghỉ phép theo user + trạng thái
             b.HasIndex(x => new { x.UserId, x.Status });
+            b.Property(x => x.Status).HasConversion<string>();
         });
 
         builder.Entity<SalaryProfile>(b =>
@@ -112,6 +114,7 @@ public class QuanLyNhanSuDbContext :
         {
             b.ToTable("AppPayslipComplaints");
             b.ConfigureByConvention();
+            b.Property(x => x.Status).HasConversion<string>();
         });
 
         builder.Entity<Branch>(b =>
@@ -126,6 +129,15 @@ public class QuanLyNhanSuDbContext :
             b.ConfigureByConvention();
             b.HasIndex(x => new { x.EnrollNumber, x.TemplateType, x.FingerIndex })
                 .IsUnique(); // Chống trùng lặp composite key
+            b.Property(x => x.TemplateType).HasConversion<string>();
+        });
+
+        builder.Entity<UserKey>(b =>
+        {
+            b.ToTable("AppUserKeys");
+            b.ConfigureByConvention();
+            // DESIGN-02: Đảm bảo 1 user chỉ có 1 UserKey (Bảo vệ khỏi Race Condition)
+            b.HasIndex(x => x.UserId).IsUnique();
         });
 
         builder.ConfigurePermissionManagement();

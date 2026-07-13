@@ -1,5 +1,6 @@
 using System;
 using Volo.Abp.Domain.Entities.Auditing;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -10,7 +11,7 @@ namespace QuanLyNhanSu
         public int Month { get; set; }
         public int Year { get; set; }
         public string Reason { get; set; }
-        public string Status { get; set; } // "Pending", "Resolved", "Rejected"
+        public LeaveRequestStatus Status { get; set; } // Pending, Approved (Resolved), Rejected
         public string AdminReply { get; set; }
 
         protected PayslipComplaint() { }
@@ -23,7 +24,7 @@ namespace QuanLyNhanSu
             Month = month;
             Year = year;
             Reason = reason;
-            Status = "Pending";
+            Status = LeaveRequestStatus.Pending;
             AdminReply = "";
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Domain.Entities.Auditing;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu.Domain
 {
@@ -29,7 +30,7 @@ namespace QuanLyNhanSu.Domain
         /// <summary>
         /// Loại sinh trắc học: "Fingerprint" hoặc "Face"
         /// </summary>
-        public string TemplateType { get; set; } = null!;
+        public BiometricType TemplateType { get; set; }
 
         /// <summary>
         /// Chỉ số ngón tay (0-9). Đặt -1 nếu là khuôn mặt.
@@ -63,7 +64,7 @@ namespace QuanLyNhanSu.Domain
         protected BiometricTemplate() { }
 
         // Hàm khởi tạo có tham số
-        public BiometricTemplate(Guid id, string enrollNumber, string templateType, int fingerIndex,
+        public BiometricTemplate(Guid id, string enrollNumber, BiometricType templateType, int fingerIndex,
             string templateData, int templateLength, string? sourceDeviceSerial = null, Guid? userId = null)
             : base(id)
         {

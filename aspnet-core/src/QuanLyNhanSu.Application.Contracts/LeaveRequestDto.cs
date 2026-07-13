@@ -1,5 +1,6 @@
 using System;
 using Volo.Abp.Application.Dtos;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -10,6 +11,6 @@ namespace QuanLyNhanSu
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public string Reason { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
+        public LeaveRequestStatus Status { get; set; }
     }
 }

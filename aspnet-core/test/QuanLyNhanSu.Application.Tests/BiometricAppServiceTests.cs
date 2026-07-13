@@ -10,6 +10,7 @@ using Volo.Abp.DependencyInjection;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Guids;
 using Xunit;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -51,14 +52,14 @@ namespace QuanLyNhanSu
                 new BiometricTemplateDto
                 {
                     EnrollNumber = "100",
-                    TemplateType = "Fingerprint",
+                    TemplateType = BiometricType.Fingerprint,
                     FingerIndex = 1,
                     TemplateData = REAL_ZKT_FINGER_BASE64
                 },
                 new BiometricTemplateDto
                 {
                     EnrollNumber = "100",
-                    TemplateType = "Face",
+                    TemplateType = BiometricType.Face,
                     FingerIndex = 50,
                     TemplateData = REAL_ZKT_FACE_BASE64
                 }
@@ -81,11 +82,11 @@ namespace QuanLyNhanSu
             resultCount.ShouldBe(2);
             insertedTemplates.Count.ShouldBe(2);
             
-            var finger = insertedTemplates.FirstOrDefault(x => x.TemplateType == "Fingerprint");
+            var finger = insertedTemplates.FirstOrDefault(x => x.TemplateType == BiometricType.Fingerprint);
             finger.ShouldNotBeNull();
             finger.TemplateData.ShouldBe(REAL_ZKT_FINGER_BASE64);
 
-            var face = insertedTemplates.FirstOrDefault(x => x.TemplateType == "Face");
+            var face = insertedTemplates.FirstOrDefault(x => x.TemplateType == BiometricType.Face);
             face.ShouldNotBeNull();
             face.TemplateData.ShouldBe(REAL_ZKT_FACE_BASE64);
         }
@@ -94,12 +95,12 @@ namespace QuanLyNhanSu
         public async Task UploadTemplatesAsync_Should_Update_Existing_Templates_Without_Duplicating()
         {
             // Arrange
-            var existingTemplate = new BiometricTemplate(Guid.NewGuid(), "200", "Fingerprint", 0, "OLD_DATA", "OLD_DATA".Length);
+            var existingTemplate = new BiometricTemplate(Guid.NewGuid(), "200", BiometricType.Fingerprint, 0, "OLD_DATA", "OLD_DATA".Length);
 
             var updatedDto = new BiometricTemplateDto
             {
                 EnrollNumber = "200",
-                TemplateType = "Fingerprint",
+                TemplateType = BiometricType.Fingerprint,
                 FingerIndex = 0,
                 TemplateData = REAL_ZKT_FINGER_BASE64
             };

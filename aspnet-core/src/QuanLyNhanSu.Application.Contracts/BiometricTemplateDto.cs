@@ -1,4 +1,5 @@
 using System;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -16,8 +17,8 @@ namespace QuanLyNhanSu
         /// <summary>Mã nhân viên trên máy chấm công</summary>
         public string EnrollNumber { get; set; } = string.Empty;
 
-        /// <summary>Loại: "Fingerprint" hoặc "Face"</summary>
-        public string TemplateType { get; set; } = string.Empty;
+        /// <summary>Loại: Fingerprint hoặc Face</summary>
+        public BiometricType TemplateType { get; set; }
 
         /// <summary>Chỉ số ngón tay (0-9), = -1 nếu Face</summary>
         public int FingerIndex { get; set; }

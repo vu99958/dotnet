@@ -9,7 +9,9 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
 using QuanLyNhanSu.Domain; // Cho UserKey
+using QuanLyNhanSu.Domain; // Cho UserKey
 using QuanLyNhanSu.Permissions;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -79,12 +81,16 @@ namespace QuanLyNhanSu
                 query.OrderByDescending(x => x.StartDate).Skip(input.SkipCount).Take(input.MaxResultCount)
             );
 
+            // DESIGN-02: Fix N+1 Query (Batch Query)
+            var userIds = entities.Select(x => x.UserId).Distinct().ToList();
+            var users = await _userRepository.GetListAsync(u => userIds.Contains(u.Id));
+            var userDict = users.ToDictionary(u => u.Id, u => u.UserName);
+
             var dtos = new List<LeaveRequestDto>();
             foreach (var entity in entities)
             {
                 var dto = MapToGetOutputDto(entity);
-                var user = await _userRepository.FirstOrDefaultAsync(u => u.Id == entity.UserId);
-                dto.UserName = user != null ? user.UserName : "Không xác định";
+                dto.UserName = userDict.TryGetValue(entity.UserId, out var userName) ? userName : "Không xác định";
                 dtos.Add(dto);
             }
 
@@ -104,7 +110,7 @@ namespace QuanLyNhanSu
             // Loại trừ các đơn đã bị Từ chối (Rejected)
             bool isOverlap = await Repository.AnyAsync(x => 
                 x.UserId == currentUserId && 
-                x.Status != "Rejected" &&
+                x.Status != LeaveRequestStatus.Rejected &&
                 x.StartDate.Date <= input.EndDate.Date && 
                 x.EndDate.Date >= input.StartDate.Date);
             
@@ -114,7 +120,7 @@ namespace QuanLyNhanSu
             }
 
             input.UserId = currentUserId;
-            input.Status = "Pending";
+            input.Status = LeaveRequestStatus.Pending;
             return await base.CreateAsync(input);
         }
 
@@ -131,7 +137,7 @@ namespace QuanLyNhanSu
                 throw new UnauthorizedAccessException("Từ chối: Bạn không thể sửa đơn của người khác.");
             }
 
-            if (entity.Status != "Pending")
+            if (entity.Status != LeaveRequestStatus.Pending)
             {
                 throw new UserFriendlyException("Chỉ được sửa đơn khi ở trạng thái Đang chờ.");
             }
@@ -145,7 +151,7 @@ namespace QuanLyNhanSu
             bool isOverlap = await Repository.AnyAsync(x => 
                 x.Id != id &&
                 x.UserId == entity.UserId && 
-                x.Status != "Rejected" &&
+                x.Status != LeaveRequestStatus.Rejected &&
                 x.StartDate.Date <= input.EndDate.Date && 
                 x.EndDate.Date >= input.StartDate.Date);
             
@@ -169,7 +175,7 @@ namespace QuanLyNhanSu
             if (myRole == "admin" || myRole == "superadmin")
             {
                 // Quản lý: Không được xóa đơn nếu chưa xác nhận (đang Pending)
-                if (entity.Status == "Pending")
+                if (entity.Status == LeaveRequestStatus.Pending)
                 {
                     throw new UserFriendlyException("Quản lý không được phép xóa đơn khi chưa xác nhận. Vui lòng Duyệt hoặc Từ chối trước!");
                 }
@@ -181,7 +187,7 @@ namespace QuanLyNhanSu
                 {
                     throw new UnauthorizedAccessException("Từ chối: Bạn không thể xóa đơn của người khác.");
                 }
-                if (entity.Status != "Pending")
+                if (entity.Status != LeaveRequestStatus.Pending)
                 {
                     throw new UserFriendlyException("Chỉ được rút đơn khi ở trạng thái Đang chờ.");
                 }
@@ -190,9 +196,9 @@ namespace QuanLyNhanSu
             await base.DeleteAsync(id);
         }
 
-        public async Task ChangeStatusAsync(Guid id, string newStatus)
+        public async Task ChangeStatusAsync(Guid id, LeaveRequestStatus newStatus)
         {
-            if (newStatus != "Approved" && newStatus != "Rejected")
+            if (newStatus != LeaveRequestStatus.Approved && newStatus != LeaveRequestStatus.Rejected)
             {
                 throw new UserFriendlyException("Trạng thái mới không hợp lệ.");
             }

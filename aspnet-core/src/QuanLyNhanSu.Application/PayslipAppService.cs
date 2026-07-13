@@ -8,6 +8,7 @@ using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
 using QuanLyNhanSu.Domain;
 using QuanLyNhanSu.Permissions;
+using QuanLyNhanSu.Settings;
 
 namespace QuanLyNhanSu
 {
@@ -19,22 +20,19 @@ namespace QuanLyNhanSu
         private readonly IRepository<AttendanceRecord, Guid> _attendanceRepository;
         private readonly IRepository<LeaveRequest, Guid> _leaveRequestRepository;
         private readonly IRepository<IdentityUser, Guid> _userRepository;
-        private readonly IRepository<UserKey, Guid> _userKeyRepository;
 
         public PayslipAppService(
             IRepository<SalaryProfile, Guid> salaryProfileRepository,
             IRepository<Payslip, Guid> payslipRepository,
             IRepository<AttendanceRecord, Guid> attendanceRepository,
             IRepository<LeaveRequest, Guid> leaveRequestRepository,
-            IRepository<IdentityUser, Guid> userRepository,
-            IRepository<UserKey, Guid> userKeyRepository)
+            IRepository<IdentityUser, Guid> userRepository)
         {
             _salaryProfileRepository = salaryProfileRepository;
             _payslipRepository = payslipRepository;
             _attendanceRepository = attendanceRepository;
             _leaveRequestRepository = leaveRequestRepository;
             _userRepository = userRepository;
-            _userKeyRepository = userKeyRepository;
         }
 
         /// <summary>
@@ -73,9 +71,18 @@ namespace QuanLyNhanSu
             var salaryProfiles = await _salaryProfileRepository.GetListAsync();
             var attendances = await _attendanceRepository.GetListAsync(x => x.WorkDate >= startDate && x.WorkDate <= endDate);
             var leaves = await _leaveRequestRepository.GetListAsync(x =>
-                x.Status == "Approved" &&
+                x.Status == QuanLyNhanSu.Enums.LeaveRequestStatus.Approved &&
                 x.StartDate <= endDate && x.EndDate >= startDate);
             var existingPayslips = await _payslipRepository.GetListAsync(x => x.Month == month && x.Year == year);
+
+            // ──────────────────────────────────────────────
+            // FETCH SETTINGS (SaaS Ready)
+            // ──────────────────────────────────────────────
+            var latePenaltySetting = await SettingProvider.GetOrNullAsync(QuanLyNhanSuSettings.Payroll.LatePenaltyPerMinute) ?? "2000";
+            var netSalaryRateSetting = await SettingProvider.GetOrNullAsync(QuanLyNhanSuSettings.Payroll.NetSalaryRate) ?? "0.895";
+            
+            decimal latePenaltyPerMinute = decimal.Parse(latePenaltySetting);
+            decimal netSalaryRate = decimal.Parse(netSalaryRateSetting);
 
             foreach (var profile in salaryProfiles)
             {
@@ -108,7 +115,7 @@ namespace QuanLyNhanSu
                 // ──────────────────────────────────────────────
                 int totalLateMinutes = userAttendances.Sum(x => x.LateMinutes);
                 int totalEarlyMinutes = userAttendances.Sum(x => x.EarlyLeaveMinutes);
-                decimal totalPenalty = (totalLateMinutes + totalEarlyMinutes) * 2000m;
+                decimal totalPenalty = (totalLateMinutes + totalEarlyMinutes) * latePenaltyPerMinute;
 
                 // ──────────────────────────────────────────────
                 // 3. NGÀY PHÉP CÓ LƯƠNG (Loại trừ Thứ 7, Chủ Nhật)
@@ -156,7 +163,7 @@ namespace QuanLyNhanSu
                 decimal regularDays = (decimal)totalPaidDays;
                 decimal grossSalary = (dailySalary * regularDays) + profile.Allowance + overtimePay - totalPenalty;
                 if (grossSalary < 0) grossSalary = 0;
-                decimal netSalary = grossSalary * 0.895m;
+                decimal netSalary = grossSalary * netSalaryRate;
 
                 // ──────────────────────────────────────────────
                 // 6. LƯU KẾT QUẢ (Upsert: Cập nhật nếu có, Tạo mới nếu chưa)
@@ -192,11 +199,10 @@ namespace QuanLyNhanSu
         {
             var payslips = await _payslipRepository.GetListAsync(x => x.Month == month && x.Year == year);
             
-            // Phân quyền dùng UserKey.Role (thống nhất toàn hệ thống)
+            // Phân quyền chuẩn ABP (Anti Manual-Role-Check)
             if (CurrentUser.Id.HasValue)
             {
-                var userKey = await _userKeyRepository.FirstOrDefaultAsync(k => k.UserId == CurrentUser.Id.Value);
-                bool isAdmin = userKey != null && (userKey.Role.ToLower() == "admin" || userKey.Role.ToLower() == "superadmin");
+                var isAdmin = await AuthorizationService.IsGrantedAsync(QuanLyNhanSuPermissions.Payslip.Manage);
                 if (!isAdmin)
                 {
                     payslips = payslips.Where(x => x.UserId == CurrentUser.Id.Value).ToList();

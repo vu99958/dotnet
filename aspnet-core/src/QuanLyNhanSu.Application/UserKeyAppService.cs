@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
 using QuanLyNhanSu.Domain;
 using QuanLyNhanSu.Application.Contracts;
+using QuanLyNhanSu.Helpers;
 using QuanLyNhanSu.Permissions;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -60,7 +61,7 @@ public class UserKeyAppService : ApplicationService, ITransientDependency
         }
 
         // Tạo key duy nhất (UUID)
-        var key = Guid.NewGuid().ToString("N").Substring(0, 16).ToUpper();
+        var key = CryptoHelper.GenerateSecureKey(16);
 
         try
         {
@@ -135,7 +136,7 @@ public class UserKeyAppService : ApplicationService, ITransientDependency
     /// <summary>
     /// Xác minh key hợp lệ
     /// </summary>
-    [AllowAnonymous]
+    [Authorize(QuanLyNhanSuPermissions.UserKey.Manage)]
     public virtual async Task<UserKeyResultDto?> VerifyKeyAsync(string key)
     {
         var userKey = await _userKeyRepository.FirstOrDefaultAsync(x => 

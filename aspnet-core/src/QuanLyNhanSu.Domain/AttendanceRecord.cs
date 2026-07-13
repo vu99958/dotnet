@@ -1,5 +1,6 @@
 using System;
 using Volo.Abp.Domain.Entities;
+using QuanLyNhanSu.Enums;
 
 namespace QuanLyNhanSu
 {
@@ -19,6 +20,7 @@ namespace QuanLyNhanSu
         public DateTime? CheckOutTime { get; set; }
 
         // Trạng thái: "Đúng giờ", "Đi trễ", "Vắng mặt"...
+        // TODO: Mapped to a more generic string or enum later if needed.
         public string Status { get; set; }
         public int LateMinutes { get; set; }
         public int EarlyLeaveMinutes { get; set; }

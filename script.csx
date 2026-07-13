@@ -1,12 +1,21 @@
-using System;
-using System.Linq;
-using Microsoft.EntityFrameworkCore;
-using QuanLyNhanSu.EntityFrameworkCore;
+#r "nuget: Microsoft.Data.SqlClient, 5.1.1"
 
-var optionsBuilder = new DbContextOptionsBuilder<QuanLyNhanSuDbContext>();
-optionsBuilder.UseSqlServer("Server=localhost;Database=QuanLyNhanSu;Trusted_Connection=True;TrustServerCertificate=True");
-using var db = new QuanLyNhanSuDbContext(optionsBuilder.Options);
-var keys = db.UserKeys.ToList();
-foreach(var k in keys) {
-    Console.WriteLine($"Key: {k.Key}, Role: {k.Role}, Status: {k.Status}");
+using System;
+using Microsoft.Data.SqlClient;
+
+string connStr = "Server=localhost\\SQLEXPRESS;Database=QuanLyNhanSu;Trusted_Connection=True;TrustServerCertificate=True;";
+using (var conn = new SqlConnection(connStr))
+{
+    conn.Open();
+
+    using (var cmd = new SqlCommand("SELECT [Key], [Role], [Status] FROM UserKeys", conn))
+    {
+        using (var reader = cmd.ExecuteReader())
+        {
+            Console.WriteLine("--- Danh sách UserKeys ---");
+            while(reader.Read()) {
+                Console.WriteLine($"Key: {reader["Key"]}, Role: {reader["Role"]}, Status: {reader["Status"]}");
+            }
+        }
+    }
 }

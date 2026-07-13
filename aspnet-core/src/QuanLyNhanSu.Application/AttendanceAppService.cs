@@ -42,7 +42,7 @@ namespace QuanLyNhanSu
         // ==========================================
         // 1. API ĐỒNG BỘ TỪ MÁY CHẤM CÔNG
         // ==========================================
-        [AllowAnonymous] 
+        [Authorize(QuanLyNhanSuPermissions.Attendance.Manage)] 
         public async Task<int> SyncBulkDataAsync(List<SyncAttendanceDto> inputList)
         {
             if (inputList == null || !inputList.Any()) return 0;
@@ -156,7 +156,7 @@ namespace QuanLyNhanSu
 
             var approvedLeave = await _leaveRequestRepository.FirstOrDefaultAsync(x => 
                 x.UserId == userId && 
-                x.Status == "Approved" && 
+                x.Status == QuanLyNhanSu.Enums.LeaveRequestStatus.Approved && 
                 today >= x.StartDate.Date && 
                 today <= x.EndDate.Date);
 
@@ -296,7 +296,7 @@ namespace QuanLyNhanSu
             // Lấy tất cả đơn nghỉ phép được duyệt mà ngày `parsedDate` nằm trong khoảng
             var approvedLeaves = await _leaveRequestRepository.GetListAsync(
                 x => allUserIds.Contains(x.UserId)
-                     && x.Status == "Approved"
+                     && x.Status == QuanLyNhanSu.Enums.LeaveRequestStatus.Approved
                      && parsedDate >= x.StartDate.Date
                      && parsedDate <= x.EndDate.Date
             );
@@ -448,6 +448,12 @@ namespace QuanLyNhanSu
             if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var t))
                 parsedTo = t.Date;
 
+            // DESIGN-02: Giới hạn khoảng thời gian truy vấn tối đa 31 ngày để tránh tràn RAM
+            if ((parsedTo - parsedFrom).TotalDays > 31)
+            {
+                throw new UserFriendlyException("Khoảng thời gian báo cáo không được vượt quá 31 ngày để đảm bảo hiệu năng!");
+            }
+
             // ==========================================
             // BƯỚC 1: Lấy danh sách tất cả nhân viên
             // ==========================================
@@ -466,7 +472,7 @@ namespace QuanLyNhanSu
             // Lấy tất cả đơn nghỉ phép đã duyệt có giao nhau với khoảng thời gian
             var allLeaves = await _leaveRequestRepository.GetListAsync(
                 x => allUserIds.Contains(x.UserId)
-                     && x.Status == "Approved"
+                     && x.Status == QuanLyNhanSu.Enums.LeaveRequestStatus.Approved
                      && x.StartDate.Date <= parsedTo
                      && x.EndDate.Date >= parsedFrom
             );

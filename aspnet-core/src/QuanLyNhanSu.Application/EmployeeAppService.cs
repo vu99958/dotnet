@@ -9,6 +9,7 @@ using Volo.Abp.Identity;
 using Volo.Abp.Domain.Repositories;
 using QuanLyNhanSu.Domain;
 using QuanLyNhanSu.Permissions;
+using QuanLyNhanSu.Helpers;
 
 namespace QuanLyNhanSu
 {
@@ -97,7 +98,7 @@ namespace QuanLyNhanSu
             await _userManager.SetPhoneNumberAsync(user, input.PhoneNumber);
 
             // Tự động sinh Key và gắn Quyền, BranchId vào bảng UserKey
-            var newKey = new UserKey(GuidGenerator.Create(), user.Id, Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper(), input.Role);
+            var newKey = new UserKey(GuidGenerator.Create(), user.Id, CryptoHelper.GenerateSecureKey(10), input.Role);
             newKey.BranchId = input.BranchId;
             await _userKeyRepository.InsertAsync(newKey);
         }
@@ -186,7 +187,7 @@ namespace QuanLyNhanSu
                 throw new UserFriendlyException("Nhân viên này chưa có dữ liệu Key trong hệ thống!");
 
             // Xóa key cũ, tạo Key mới (10 ký tự ngẫu nhiên, viết hoa)
-            string newKeyString = Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
+            string newKeyString = CryptoHelper.GenerateSecureKey(10);
             
             // Xóa dòng cũ và tạo dòng mới (cách an toàn nhất để reset)
             // BUG-12 FIX: Copy lại BranchId để không mất chi nhánh khi reset key
