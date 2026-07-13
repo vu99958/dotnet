@@ -174,4 +174,44 @@ public class UserKeyAppService : ApplicationService, ITransientDependency
 
         await _userKeyRepository.DeleteAsync(userKey);
     }
+
+    /*
+     * [ONBOARDING COMMENT - FOR JUNIOR DEV]
+     * Reset Key là luồng nhạy cảm.
+     * AppService chỉ làm nhiệm vụ "Điều phối" (Orchestration):
+     * 1. Lấy dữ liệu (Repository)
+     * 2. Gọi logic của Domain (userKey.RevokeKey) thay vì gán giá trị trực tiếp
+     * 3. Lưu xuống DB
+     */
+    [Authorize(QuanLyNhanSuPermissions.UserKey.Manage)] // ZERO-TRUST: Chỉ Admin được phép
+    public virtual async Task<string> ResetUserKeyAsync(Guid userId)
+    {
+        // 1. Tìm key cũ đang Active
+        var currentKey = await _userKeyRepository.FindAsync(x => x.UserId == userId && x.Status == "active");
+        
+        string roleToKeep = "user";
+
+        if (currentKey != null)
+        {
+            // Gọi Domain Behavior
+            currentKey.RevokeKey();
+            await _userKeyRepository.UpdateAsync(currentKey);
+            roleToKeep = currentKey.Role;
+        }
+
+        // 2. Tạo Key mới an toàn sinh từ Cryptography chuẩn
+        var plainNewKey = CryptoHelper.GenerateSecureKey(16);
+
+        var newKeyEntity = new UserKey(
+            GuidGenerator.Create(),
+            userId,
+            plainNewKey, // Lưu trực tiếp, trong bài mockup tôi hash nhưng ở đây để đồng nhất với CreateUserKeyAsync thì để plain.
+            roleToKeep
+        );
+
+        await _userKeyRepository.InsertAsync(newKeyEntity);
+
+        // Chỉ trả về Plain text duy nhất 1 lần cho Admin hiển thị lên màn hình
+        return plainNewKey; 
+    }
 }

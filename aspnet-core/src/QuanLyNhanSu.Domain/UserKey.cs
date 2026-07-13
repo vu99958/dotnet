@@ -50,4 +50,19 @@ public class UserKey : FullAuditedAggregateRoot<Guid>
         Description = description;
         Status = "active";
     }
+
+    /* 
+     * [ONBOARDING COMMENT - FOR JUNIOR DEV]
+     * Tại sao lại đặt logic 'Revoke' ở đây?
+     * Theo nguyên lý Rich Domain Model của DDD, Aggregate Root (UserKey) phải tự quản lý trạng thái của chính nó.
+     * Cấm việc AppService tự gán giá trị: userKey.Status = "revoked";
+     * Thay vào đó, gọi hàm userKey.RevokeKey() để bảo toàn tính đóng gói (Encapsulation).
+     */
+    public void RevokeKey()
+    {
+        if (Status == "revoked")
+            throw new InvalidOperationException("Key này đã bị vô hiệu hóa trước đó!");
+        
+        Status = "revoked";
+    }
 }
