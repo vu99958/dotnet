@@ -161,13 +161,25 @@ namespace QuanLyNhanSu.DesktopClient
                             dgvLeaveRequests.Rows.Clear();
                             foreach (var item in items.EnumerateArray())
                             {
+                                string statusStr = "Pending";
+                                var statusProp = item.GetProperty("status");
+                                if (statusProp.ValueKind == JsonValueKind.Number)
+                                {
+                                    int s = statusProp.GetInt32();
+                                    statusStr = s == 0 ? "Pending" : s == 1 ? "Approved" : "Rejected";
+                                }
+                                else
+                                {
+                                    statusStr = statusProp.GetString() ?? "Pending";
+                                }
+
                                 dgvLeaveRequests.Rows.Add(
                                     item.GetProperty("id").GetString(),
                                     item.GetProperty("userName").GetString(),
                                     item.GetProperty("startDate").GetDateTime().ToString("dd/MM/yyyy"),
                                     item.GetProperty("endDate").GetDateTime().ToString("dd/MM/yyyy"),
                                     item.GetProperty("reason").GetString(),
-                                    item.GetProperty("status").GetString()
+                                    statusStr
                                 );
                             }
                         }

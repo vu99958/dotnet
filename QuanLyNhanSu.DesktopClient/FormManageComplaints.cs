@@ -90,13 +90,25 @@ namespace QuanLyNhanSu.DesktopClient
 
                         foreach (var item in items.EnumerateArray())
                         {
+                            string statusStr = "Pending";
+                            var statusProp = item.GetProperty("status");
+                            if (statusProp.ValueKind == JsonValueKind.Number)
+                            {
+                                int s = statusProp.GetInt32();
+                                statusStr = s == 0 ? "Pending" : s == 1 ? "Approved" : "Rejected";
+                            }
+                            else
+                            {
+                                statusStr = statusProp.GetString() ?? "Pending";
+                            }
+
                             dgvComplaints.Rows.Add(
                                 item.GetProperty("id").GetString(),
                                 item.GetProperty("userName").GetString(),
                                 item.GetProperty("month").GetInt32(),
                                 item.GetProperty("year").GetInt32(),
                                 item.GetProperty("reason").GetString(),
-                                item.GetProperty("status").GetString(),
+                                statusStr,
                                 item.GetProperty("creationTime").GetDateTime().ToString("dd/MM/yyyy HH:mm")
                             );
                         }
