@@ -78,24 +78,26 @@ namespace QuanLyNhanSu
             // ──────────────────────────────────────────────
             // FETCH SETTINGS (SaaS Ready)
             // ──────────────────────────────────────────────
-            var latePenaltySetting = await SettingProvider.GetOrNullAsync(global::QuanLyNhanSu.Settings.QuanLyNhanSuSettings.Payroll.LatePenaltyPerMinute) ?? "2000";
-            var netSalaryRateSetting = await SettingProvider.GetOrNullAsync(global::QuanLyNhanSu.Settings.QuanLyNhanSuSettings.Payroll.NetSalaryRate) ?? "0.895";
+            var latePenaltySetting = await SettingProvider.GetOrNullAsync("QuanLyNhanSu.Payroll.LatePenaltyPerMinute") ?? "2000";
+            var netSalaryRateSetting = await SettingProvider.GetOrNullAsync("QuanLyNhanSu.Payroll.NetSalaryRate") ?? "0.895";
             
             decimal latePenaltyPerMinute = decimal.Parse(latePenaltySetting);
             decimal netSalaryRate = decimal.Parse(netSalaryRateSetting);
+
+            // [ONBOARDING COMMENT]: Gom nhóm dữ liệu vào In-Memory Dictionary/Lookup để xử lý với độ phức tạp O(N) thay vì O(N^2) khi dùng .Where() trong vòng lặp.
+            var attendanceLookup = attendances.Where(x => x.CheckInTime != null).ToLookup(x => x.UserId);
+            var leaveLookup = leaves.ToLookup(x => x.UserId);
+            var existingPayslipsDict = existingPayslips.ToDictionary(x => x.UserId);
+
+            var payslipsToInsert = new List<Payslip>();
+            var payslipsToUpdate = new List<Payslip>();
 
             foreach (var profile in salaryProfiles)
             {
                 var userId = profile.UserId;
 
-                // ──────────────────────────────────────────────
                 // 1. NGÀY CÔNG THỰC TẾ
-                // BUG-04 FIX: Không filter theo Status (vì Status không nhất quán giữa
-                // CheckIn thủ công vs SyncBulkData). Thay bằng CheckInTime != null.
-                // ──────────────────────────────────────────────
-                var userAttendances = attendances
-                    .Where(x => x.UserId == userId && x.CheckInTime != null)
-                    .ToList();
+                var userAttendances = attendanceLookup[userId].ToList();
                 
                 double actualWorkDays = 0;
                 foreach (var att in userAttendances)
@@ -110,26 +112,20 @@ namespace QuanLyNhanSu
                     }
                 }
 
-                // ──────────────────────────────────────────────
                 // 2. PHẠT ĐI TRỄ / VỀ SỚM
-                // ──────────────────────────────────────────────
                 int totalLateMinutes = userAttendances.Sum(x => x.LateMinutes);
                 int totalEarlyMinutes = userAttendances.Sum(x => x.EarlyLeaveMinutes);
                 decimal totalPenalty = (totalLateMinutes + totalEarlyMinutes) * latePenaltyPerMinute;
 
-                // ──────────────────────────────────────────────
                 // 3. NGÀY PHÉP CÓ LƯƠNG (Loại trừ Thứ 7, Chủ Nhật)
-                // ──────────────────────────────────────────────
-                var userLeaves = leaves.Where(x => x.UserId == userId).ToList();
+                var userLeaves = leaveLookup[userId].ToList();
                 int approvedLeaveDays = 0;
                 foreach (var leave in userLeaves)
                 {
-                    // Chỉ tính số ngày nghỉ NẰM TRONG tháng đang chốt
                     var leaveStart = leave.StartDate.Date > startDate ? leave.StartDate.Date : startDate;
                     var leaveEnd = leave.EndDate.Date < endDate ? leave.EndDate.Date : endDate;
                     if (leaveEnd >= leaveStart)
                     {
-                        // Duyệt từng ngày trong khoảng nghỉ để loại trừ T7, CN
                         for (var d = leaveStart; d <= leaveEnd; d = d.AddDays(1))
                         {
                             if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
@@ -140,36 +136,26 @@ namespace QuanLyNhanSu
                     }
                 }
 
-                // ──────────────────────────────────────────────
                 // 4. TÍNH TĂNG CA (OVERTIME)
-                // ──────────────────────────────────────────────
                 decimal dailySalary = profile.BaseSalary / standardWorkDays;
                 double totalPaidDays = actualWorkDays + approvedLeaveDays;
                 
-                // Chặn trần ngày công
                 if (totalPaidDays > standardWorkDays)
                 {
                     totalPaidDays = standardWorkDays;
                 }
 
-                int overtimeDays = 0; // Tính năng Overtime tạm khóa trần bằng với ngày công chuẩn, chờ phát triển quy trình duyệt OvertimeRequest riêng.
+                int overtimeDays = 0;
                 decimal overtimePay = 0;
 
-                // ──────────────────────────────────────────────
                 // 5. TÍNH LƯƠNG GROSS & NET
-                // Gross = Lương ngày thường + Phụ cấp + Tăng ca - Phạt
-                // Net   = Gross × 89.5% (trừ 10.5% BHXH + BHYT + BHTN)
-                // ──────────────────────────────────────────────
                 decimal regularDays = (decimal)totalPaidDays;
                 decimal grossSalary = (dailySalary * regularDays) + profile.Allowance + overtimePay - totalPenalty;
                 if (grossSalary < 0) grossSalary = 0;
                 decimal netSalary = grossSalary * netSalaryRate;
 
-                // ──────────────────────────────────────────────
-                // 6. LƯU KẾT QUẢ (Upsert: Cập nhật nếu có, Tạo mới nếu chưa)
-                // ──────────────────────────────────────────────
-                var payslip = existingPayslips.FirstOrDefault(p => p.UserId == userId);
-                if (payslip == null)
+                // 6. CHUẨN BỊ LƯU KẾT QUẢ
+                if (!existingPayslipsDict.TryGetValue(userId, out var payslip))
                 {
                     payslip = new Payslip(
                         GuidGenerator.Create(),
@@ -178,7 +164,7 @@ namespace QuanLyNhanSu
                         overtimeDays, overtimePay,
                         totalPenalty, grossSalary, netSalary
                     );
-                    await _payslipRepository.InsertAsync(payslip);
+                    payslipsToInsert.Add(payslip);
                 }
                 else
                 {
@@ -190,8 +176,18 @@ namespace QuanLyNhanSu
                     payslip.TotalPenalty = totalPenalty;
                     payslip.GrossSalary = grossSalary;
                     payslip.NetSalary = netSalary;
-                    await _payslipRepository.UpdateAsync(payslip);
+                    payslipsToUpdate.Add(payslip);
                 }
+            }
+
+            // [ONBOARDING COMMENT]: KHÔNG truy vấn hay ghi DB trong vòng lặp. Bắt buộc dùng InsertManyAsync và UpdateManyAsync để xử lý Bulk Data, cắt giảm 10,000 DB Round-trips xuống còn 2.
+            if (payslipsToInsert.Any())
+            {
+                await _payslipRepository.InsertManyAsync(payslipsToInsert);
+            }
+            if (payslipsToUpdate.Any())
+            {
+                await _payslipRepository.UpdateManyAsync(payslipsToUpdate);
             }
         }
 
@@ -209,7 +205,9 @@ namespace QuanLyNhanSu
                 }
             }
 
-            var users = await _userRepository.GetListAsync();
+            // [ONBOARDING COMMENT]: Lọc danh sách ID thay vì load toàn bộ bảng Users vào RAM (chống N+1 Query & Memory Bloat) theo chuẩn Enterprise.
+            var userIds = payslips.Select(p => p.UserId).Distinct().ToList();
+            var users = await _userRepository.GetListAsync(u => userIds.Contains(u.Id));
 
             var query = from p in payslips
                         join u in users on p.UserId equals u.Id
