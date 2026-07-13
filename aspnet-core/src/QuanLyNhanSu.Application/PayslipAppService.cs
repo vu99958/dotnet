@@ -78,8 +78,9 @@ namespace QuanLyNhanSu
             // ──────────────────────────────────────────────
             // FETCH SETTINGS (SaaS Ready)
             // ──────────────────────────────────────────────
-            var latePenaltySetting = await SettingProvider.GetOrNullAsync("QuanLyNhanSu.Payroll.LatePenaltyPerMinute") ?? "2000";
-            var netSalaryRateSetting = await SettingProvider.GetOrNullAsync("QuanLyNhanSu.Payroll.NetSalaryRate") ?? "0.895";
+            // Sử dụng hằng số từ Domain.Shared. KHÔNG DÙNG HARDCODE STRING.
+            var latePenaltySetting = await SettingProvider.GetOrNullAsync(QuanLyNhanSuSettings.Payroll.LatePenaltyPerMinute) ?? "2000";
+            var netSalaryRateSetting = await SettingProvider.GetOrNullAsync(QuanLyNhanSuSettings.Payroll.NetSalaryRate) ?? "0.895";
             
             decimal latePenaltyPerMinute = decimal.Parse(latePenaltySetting);
             decimal netSalaryRate = decimal.Parse(netSalaryRateSetting);

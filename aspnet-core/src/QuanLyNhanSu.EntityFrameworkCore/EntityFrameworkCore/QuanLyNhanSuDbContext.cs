@@ -134,7 +134,7 @@ public class QuanLyNhanSuDbContext :
 
         builder.Entity<UserKey>(b =>
         {
-            b.ToTable("AppUserKeys");
+            b.ToTable("UserKeys");
             b.ConfigureByConvention();
             // DESIGN-02: Đảm bảo 1 user chỉ có 1 UserKey (Bảo vệ khỏi Race Condition)
             b.HasIndex(x => x.UserId).IsUnique();

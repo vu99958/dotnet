@@ -52,7 +52,7 @@ public class UserCreatedEventHandler : ILocalEventHandler<EntityCreatedEventData
         }
         catch (Exception ex)
         {
-            if (ex.InnerException?.Message?.Contains("IX_AppUserKeys_UserId") == true || ex.Message.Contains("IX_AppUserKeys_UserId"))
+            if (ex.InnerException?.Message?.Contains("IX_UserKeys_UserId") == true || ex.Message.Contains("IX_UserKeys_UserId"))
             {
                 // DESIGN-02: Bỏ qua nếu có DbUpdateException (báo hiệu Key đã được EmployeeAppService tạo trước đó)
                 // Nhờ Unique Index trên UserId, Database sẽ bảo vệ chúng ta khỏi việc tạo trùng lặp.

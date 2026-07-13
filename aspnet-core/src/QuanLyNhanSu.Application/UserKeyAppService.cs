@@ -136,7 +136,7 @@ public class UserKeyAppService : ApplicationService, ITransientDependency
     /// <summary>
     /// Xác minh key hợp lệ
     /// </summary>
-    [Authorize(QuanLyNhanSuPermissions.UserKey.Manage)]
+    [AllowAnonymous]
     public virtual async Task<UserKeyResultDto?> VerifyKeyAsync(string key)
     {
         var userKey = await _userKeyRepository.FirstOrDefaultAsync(x => 
