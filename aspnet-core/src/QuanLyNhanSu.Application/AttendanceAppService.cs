@@ -22,6 +22,7 @@ namespace QuanLyNhanSu
         private readonly IRepository<Branch, Guid> _branchRepository;
         private readonly IRepository<LeaveRequest, Guid> _leaveRequestRepository;
         private readonly AttendanceManager _attendanceManager;
+        private readonly Volo.Abp.EventBus.Local.ILocalEventBus _localEventBus;
 
         public AttendanceAppService(
             IRepository<AttendanceRecord, Guid> attendanceRepository,
@@ -29,7 +30,8 @@ namespace QuanLyNhanSu
             IRepository<UserKey, Guid> userKeyRepository,
             IRepository<Branch, Guid> branchRepository,
             IRepository<LeaveRequest, Guid> leaveRequestRepository,
-            AttendanceManager attendanceManager)
+            AttendanceManager attendanceManager,
+            Volo.Abp.EventBus.Local.ILocalEventBus localEventBus)
         {
             _attendanceRepository = attendanceRepository;
             _userRepository = userRepository;
@@ -37,88 +39,30 @@ namespace QuanLyNhanSu
             _branchRepository = branchRepository;
             _leaveRequestRepository = leaveRequestRepository;
             _attendanceManager = attendanceManager;
+            _localEventBus = localEventBus;
         }
 
         // ==========================================
         // 1. API ĐỒNG BỘ TỪ MÁY CHẤM CÔNG
         // ==========================================
-        [Authorize(QuanLyNhanSuPermissions.Attendance.Manage)] 
+        [Authorize(QuanLyNhanSuPermissions.Attendance.Manage)]
         public async Task<int> SyncBulkDataAsync(List<SyncAttendanceDto> inputList)
         {
             if (inputList == null || !inputList.Any()) return 0;
 
-            var userNames = inputList.Select(x => x.UserName).Distinct().ToList();
-            var users = await _userRepository.GetListAsync(x => userNames.Contains(x.UserName));
-            var userDictionary = users.ToDictionary(x => x.UserName, x => x.Id);
-
-            var listToSave = new List<AttendanceRecord>();
-            var listToUpdate = new List<AttendanceRecord>();
-
-            var groupedData = inputList.GroupBy(x => new { x.UserName, WorkDate = x.TimeStamp.Date }).ToList();
-
-            foreach (var group in groupedData)
+            // [ONBOARDING COMMENT]: Đẩy dữ liệu vào LocalEventBus (hoặc RabbitMQ nếu cấu hình)
+            // Đây là Event-Driven Architecture, giúp API trả kết quả ngay lập tức (202 Accepted)
+            // Thay vì bắt Client chờ hàm InsertManyAsync xử lý xong.
+            var eventData = new QuanLyNhanSu.Events.BulkSyncRequestedEvent
             {
-                if (!userDictionary.TryGetValue(group.Key.UserName, out Guid userId)) continue;
+                AttendanceData = inputList,
+                RequestTime = DateTime.UtcNow
+            };
 
-                var checkIn = group.Where(x => x.CheckType == "IN").OrderBy(x => x.TimeStamp).FirstOrDefault();
-                var checkOut = group.Where(x => x.CheckType == "OUT").OrderByDescending(x => x.TimeStamp).FirstOrDefault();
+            await _localEventBus.PublishAsync(eventData);
 
-                if (checkIn == null && checkOut == null) continue;
-
-                var workDate = group.Key.WorkDate;
-
-                // Kiểm tra xem đã có bản ghi nào trong ngày chưa
-                var existingRecord = await _attendanceRepository.FirstOrDefaultAsync(x => x.UserId == userId && x.WorkDate == workDate);
-
-                // TODO: Tương lai lấy từ cấu hình Branch hoặc WorkShift
-                var shiftStart = workDate.AddHours(8);  // 08:00
-                var shiftEnd = workDate.AddHours(17);   // 17:00
-
-                var finalCheckIn = checkIn?.TimeStamp ?? existingRecord?.CheckInTime;
-                var finalCheckOut = checkOut?.TimeStamp ?? existingRecord?.CheckOutTime;
-
-                var (lateMinutes, earlyMinutes) = _attendanceManager.CalculateLateAndEarly(finalCheckIn, finalCheckOut, shiftStart, shiftEnd);
-
-                if (existingRecord != null)
-                {
-                    // Cập nhật bản ghi hiện tại
-                    existingRecord.CheckInTime = finalCheckIn;
-                    existingRecord.CheckOutTime = finalCheckOut;
-                    existingRecord.LateMinutes = lateMinutes;
-                    existingRecord.EarlyLeaveMinutes = earlyMinutes;
-                    listToUpdate.Add(existingRecord);
-                }
-                else
-                {
-                    // Tạo mới bản ghi
-                    string statusMessage = "Hệ thống tự động đồng bộ";
-                    var record = new AttendanceRecord(
-                        GuidGenerator.Create(),
-                        userId,
-                        workDate,
-                        statusMessage
-                    )
-                    {
-                        CheckInTime = finalCheckIn,
-                        CheckOutTime = finalCheckOut,
-                        LateMinutes = lateMinutes,
-                        EarlyLeaveMinutes = earlyMinutes
-                    };
-                    listToSave.Add(record);
-                }
-            }
-
-            if (listToSave.Any())
-            {
-                await _attendanceRepository.InsertManyAsync(listToSave);
-            }
-
-            if (listToUpdate.Any())
-            {
-                await _attendanceRepository.UpdateManyAsync(listToUpdate);
-            }
-
-            return listToSave.Count + listToUpdate.Count; 
+            // Trả về số lượng record đã nhận để Client biết.
+            return inputList.Count;
         }
 
         // ==========================================

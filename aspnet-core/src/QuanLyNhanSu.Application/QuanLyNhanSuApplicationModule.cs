@@ -1,3 +1,5 @@
+using Volo.Abp;
+using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Account;
 using Volo.Abp.Mapperly;
 using Volo.Abp.FeatureManagement;
@@ -25,5 +27,10 @@ public class QuanLyNhanSuApplicationModule : AbpModule
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
         context.Services.AddMapperlyObjectMapper<QuanLyNhanSuApplicationModule>();
+    }
+
+    public override async System.Threading.Tasks.Task OnApplicationInitializationAsync(ApplicationInitializationContext context)
+    {
+        await context.AddBackgroundWorkerAsync<QuanLyNhanSu.Workers.DeviceMonitorWorker>();
     }
 }
