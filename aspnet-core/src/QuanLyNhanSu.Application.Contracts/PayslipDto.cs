@@ -6,7 +6,7 @@ namespace QuanLyNhanSu
     public class PayslipDto : EntityDto<Guid>
     {
         public Guid UserId { get; set; }
-        public string UserName { get; set; }
+        public string UserName { get; set; } = string.Empty;
         public int Month { get; set; }
         public int Year { get; set; }
         public int StandardWorkDays { get; set; }

@@ -8,12 +8,12 @@ namespace QuanLyNhanSu
     {
         public Guid PayslipId { get; set; }
         public Guid UserId { get; set; }
-        public string UserName { get; set; }
+        public string UserName { get; set; } = string.Empty;
         public int Month { get; set; }
         public int Year { get; set; }
-        public string Reason { get; set; }
+        public string Reason { get; set; } = string.Empty;
         public LeaveRequestStatus Status { get; set; }
-        public string AdminReply { get; set; }
+        public string AdminReply { get; set; } = string.Empty;
         public DateTime CreationTime { get; set; }
     }
 
@@ -22,12 +22,12 @@ namespace QuanLyNhanSu
         public Guid PayslipId { get; set; }
         public int Month { get; set; }
         public int Year { get; set; }
-        public string Reason { get; set; }
+        public string Reason { get; set; } = string.Empty;
     }
 
     public class ResolveComplaintDto
     {
         public LeaveRequestStatus Status { get; set; } // "Resolved" hoặc "Rejected"
-        public string AdminReply { get; set; }
+        public string AdminReply { get; set; } = string.Empty;
     }
 }

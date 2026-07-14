@@ -13,7 +13,7 @@ namespace QuanLyNhanSu
         public Guid UserId { get; set; }
 
         // Chức vụ: "Giám đốc", "Trưởng phòng", "Nhân viên"...
-        public string Position { get; set; }
+        public string Position { get; set; } = string.Empty;
 
         // Lương cơ bản (VNĐ)
         public decimal BaseSalary { get; set; }

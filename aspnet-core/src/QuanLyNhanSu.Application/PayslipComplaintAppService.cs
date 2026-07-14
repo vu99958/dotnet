@@ -7,7 +7,6 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
 using QuanLyNhanSu.Domain;
-using QuanLyNhanSu.Domain;
 using QuanLyNhanSu.Permissions;
 using QuanLyNhanSu.Enums;
 

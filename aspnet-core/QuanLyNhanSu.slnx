@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/QuanLyNhanSu.Application.Contracts/QuanLyNhanSu.Application.Contracts.csproj" />
+    <Project Path="src/QuanLyNhanSu.Application/QuanLyNhanSu.Application.csproj" />
+    <Project Path="src/QuanLyNhanSu.DbMigrator/QuanLyNhanSu.DbMigrator.csproj" />
+    <Project Path="src/QuanLyNhanSu.Domain.Shared/QuanLyNhanSu.Domain.Shared.csproj" />
+    <Project Path="src/QuanLyNhanSu.Domain/QuanLyNhanSu.Domain.csproj" />
+    <Project Path="src/QuanLyNhanSu.EntityFrameworkCore/QuanLyNhanSu.EntityFrameworkCore.csproj" />
+    <Project Path="src/QuanLyNhanSu.HttpApi.Client/QuanLyNhanSu.HttpApi.Client.csproj" />
+    <Project Path="src/QuanLyNhanSu.HttpApi.Host/QuanLyNhanSu.HttpApi.Host.csproj" />
+    <Project Path="src/QuanLyNhanSu.HttpApi/QuanLyNhanSu.HttpApi.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/QuanLyNhanSu.Application.Tests/QuanLyNhanSu.Application.Tests.csproj" />
+    <Project Path="test/QuanLyNhanSu.Domain.Tests/QuanLyNhanSu.Domain.Tests.csproj" />
+    <Project Path="test/QuanLyNhanSu.EntityFrameworkCore.Tests/QuanLyNhanSu.EntityFrameworkCore.Tests.csproj" />
+    <Project Path="test/QuanLyNhanSu.HttpApi.Client.ConsoleTestApp/QuanLyNhanSu.HttpApi.Client.ConsoleTestApp.csproj" />
+    <Project Path="test/QuanLyNhanSu.TestBase/QuanLyNhanSu.TestBase.csproj" />
+  </Folder>
+</Solution>

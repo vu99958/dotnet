@@ -10,9 +10,9 @@ namespace QuanLyNhanSu
         public Guid UserId { get; set; }
         public int Month { get; set; }
         public int Year { get; set; }
-        public string Reason { get; set; }
+        public string Reason { get; set; } = string.Empty;
         public LeaveRequestStatus Status { get; set; } // Pending, Approved (Resolved), Rejected
-        public string AdminReply { get; set; }
+        public string AdminReply { get; set; } = string.Empty;
 
         protected PayslipComplaint() { }
 

@@ -9,7 +9,6 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
 using QuanLyNhanSu.Domain; // Cho UserKey
-using QuanLyNhanSu.Domain; // Cho UserKey
 using QuanLyNhanSu.Permissions;
 using QuanLyNhanSu.Enums;
 

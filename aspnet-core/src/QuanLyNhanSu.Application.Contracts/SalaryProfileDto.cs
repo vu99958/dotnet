@@ -21,7 +21,7 @@ namespace QuanLyNhanSu
     public class CreateUpdateSalaryProfileDto
     {
         public Guid UserId { get; set; }
-        public string Position { get; set; }
+        public string Position { get; set; } = string.Empty;
         public decimal BaseSalary { get; set; }
         public decimal Allowance { get; set; }
     }

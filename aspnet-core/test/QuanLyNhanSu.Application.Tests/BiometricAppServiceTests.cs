@@ -69,7 +69,7 @@ namespace QuanLyNhanSu
             _biometricRepository.FirstOrDefaultAsync(
                 Arg.Any<Expression<Func<BiometricTemplate, bool>>>(),
                 Arg.Any<System.Threading.CancellationToken>()
-            ).Returns(Task.FromResult<BiometricTemplate>(null!));
+            ).Returns(Task.FromResult<BiometricTemplate?>(null));
 
             // Setup mock Insert để track xem nó có insert đúng không
             var insertedTemplates = new List<BiometricTemplate>();
@@ -109,7 +109,7 @@ namespace QuanLyNhanSu
             _biometricRepository.FirstOrDefaultAsync(
                 Arg.Any<Expression<Func<BiometricTemplate, bool>>>(),
                 Arg.Any<System.Threading.CancellationToken>()
-            ).ReturnsForAnyArgs(Task.FromResult(existingTemplate));
+            ).ReturnsForAnyArgs(Task.FromResult<BiometricTemplate?>(existingTemplate));
 
             // Setup mock Update
             BiometricTemplate updatedEntity = null!;

@@ -17,7 +17,7 @@ namespace QuanLyNhanSu
 
         [Required]
         [StringLength(500)]
-        public string Reason { get; set; }
+        public string Reason { get; set; } = string.Empty;
 
         public LeaveRequestStatus Status { get; set; } = LeaveRequestStatus.Pending;
     }
