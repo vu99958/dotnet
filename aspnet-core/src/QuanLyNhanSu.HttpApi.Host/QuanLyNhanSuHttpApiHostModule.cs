@@ -29,6 +29,8 @@ using Volo.Abp.Security.Claims;
 using Volo.Abp.Swashbuckle;
 using Volo.Abp.UI.Navigation.Urls;
 using Volo.Abp.VirtualFileSystem;
+using Volo.Abp.BackgroundJobs.Hangfire;
+using Hangfire;
 
 namespace QuanLyNhanSu;
 
@@ -41,7 +43,8 @@ namespace QuanLyNhanSu;
     typeof(AbpAspNetCoreMvcUiLeptonXLiteThemeModule),
     typeof(AbpAccountWebOpenIddictModule),
     typeof(AbpAspNetCoreSerilogModule),
-    typeof(AbpSwashbuckleModule)
+    typeof(AbpSwashbuckleModule),
+    typeof(AbpBackgroundJobsHangfireModule)
 )]
 public class QuanLyNhanSuHttpApiHostModule : AbpModule
 {
@@ -70,6 +73,15 @@ public class QuanLyNhanSuHttpApiHostModule : AbpModule
         ConfigureVirtualFileSystem(context);
         ConfigureCors(context, configuration);
         ConfigureSwaggerServices(context, configuration);
+        ConfigureHangfire(context, configuration);
+    }
+
+    private void ConfigureHangfire(ServiceConfigurationContext context, IConfiguration configuration)
+    {
+        context.Services.AddHangfire(config =>
+        {
+            config.UseSqlServerStorage(configuration.GetConnectionString("Default"));
+        });
     }
 
     private void ConfigureAuthentication(ServiceConfigurationContext context)
@@ -225,6 +237,10 @@ public class QuanLyNhanSuHttpApiHostModule : AbpModule
 
         app.UseAuditing();
         app.UseAbpSerilogEnrichers();
+        
+        // [ONBOARDING COMMENT]: Mở Dashboard quản trị Hangfire tại đường dẫn /hangfire
+        app.UseHangfireDashboard("/hangfire");
+        
         app.UseConfiguredEndpoints();
     }
 }

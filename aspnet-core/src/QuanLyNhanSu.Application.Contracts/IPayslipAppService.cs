@@ -6,7 +6,7 @@ namespace QuanLyNhanSu
 {
     public interface IPayslipAppService : IApplicationService
     {
-        Task GenerateMonthlyPayrollAsync(int month, int year);
+        Task<string> GenerateMonthlyPayrollAsync(int month, int year);
         Task<List<PayslipDto>> GetListAsync(int month, int year);
     }
 }

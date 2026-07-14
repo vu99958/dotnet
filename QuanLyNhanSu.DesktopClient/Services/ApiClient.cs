@@ -4,6 +4,9 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Retry;
 
 namespace QuanLyNhanSu.DesktopClient.Services
 {
@@ -15,6 +18,10 @@ namespace QuanLyNhanSu.DesktopClient.Services
     {
         private static readonly HttpClient _httpClient;
         public static readonly string BASE_URL;
+        
+        // [ONBOARDING COMMENT]: Cấu hình Polly Policy để tăng tính bền bỉ (Resilience)
+        private static readonly AsyncRetryPolicy<HttpResponseMessage> _retryPolicy;
+        private static readonly AsyncCircuitBreakerPolicy<HttpResponseMessage> _circuitBreakerPolicy;
 
         static ApiClient()
         {
@@ -30,7 +37,6 @@ namespace QuanLyNhanSu.DesktopClient.Services
             
             if (isDevelopment)
             {
-                // Bỏ qua lỗi chứng chỉ SSL giả (Dành cho môi trường dev)
                 handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
             }
             
@@ -40,16 +46,23 @@ namespace QuanLyNhanSu.DesktopClient.Services
                 Timeout = TimeSpan.FromSeconds(30)
             };
             
-            // Thường dùng cho các ABP endpoint để xác định request từ client script/app
             _httpClient.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+
+            // [ONBOARDING COMMENT]: Chính sách WaitAndRetry - Thử lại 3 lần với Exponential Backoff (2s, 4s, 8s) khi gặp lỗi rớt mạng hoặc 5xx.
+            _retryPolicy = Policy
+                .Handle<HttpRequestException>()
+                .OrResult<HttpResponseMessage>(r => (int)r.StatusCode >= 500)
+                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+
+            // [ONBOARDING COMMENT]: Chính sách Circuit Breaker - Nếu API lỗi liên tục 5 lần, tự động ngắt kết nối (Mở mạch) trong 30 giây để tránh làm nghẽn Server.
+            _circuitBreakerPolicy = Policy
+                .Handle<HttpRequestException>()
+                .OrResult<HttpResponseMessage>(r => (int)r.StatusCode >= 500)
+                .CircuitBreakerAsync(5, TimeSpan.FromSeconds(30));
         }
 
-        /// <summary>
-        /// Tạo HttpRequestMessage với Token nếu có
-        /// </summary>
         private static HttpRequestMessage CreateRequest(HttpMethod method, string url, string? token, HttpContent? content = null)
         {
-            // Loại bỏ dấu / ở đầu nếu có để ghép đúng với BaseAddress
             if (url.StartsWith("/"))
                 url = url.Substring(1);
 
@@ -57,8 +70,6 @@ namespace QuanLyNhanSu.DesktopClient.Services
             
             if (!string.IsNullOrEmpty(token))
             {
-                // Phân biệt Token JWT và User Key
-                // JWT Token luôn có dấu '.' (chia làm 3 phần). User Key thì không có.
                 if (!token.Contains("."))
                 {
                     request.Headers.Add("X-User-Key", token.Trim());
@@ -77,24 +88,29 @@ namespace QuanLyNhanSu.DesktopClient.Services
             return request;
         }
 
+        // [ONBOARDING COMMENT]: Wrap lời gọi API qua PolicyWrap (Retry -> Circuit Breaker)
         public static async Task<HttpResponseMessage> GetAsync(string url, string? token = null)
         {
-            return await _httpClient.SendAsync(CreateRequest(HttpMethod.Get, url, token));
+            return await _retryPolicy.WrapAsync(_circuitBreakerPolicy).ExecuteAsync(() => 
+                _httpClient.SendAsync(CreateRequest(HttpMethod.Get, url, token)));
         }
 
         public static async Task<HttpResponseMessage> PostAsync(string url, HttpContent? content = null, string? token = null)
         {
-            return await _httpClient.SendAsync(CreateRequest(HttpMethod.Post, url, token, content));
+            return await _retryPolicy.WrapAsync(_circuitBreakerPolicy).ExecuteAsync(() => 
+                _httpClient.SendAsync(CreateRequest(HttpMethod.Post, url, token, content)));
         }
 
         public static async Task<HttpResponseMessage> PutAsync(string url, HttpContent content, string? token = null)
         {
-            return await _httpClient.SendAsync(CreateRequest(HttpMethod.Put, url, token, content));
+            return await _retryPolicy.WrapAsync(_circuitBreakerPolicy).ExecuteAsync(() => 
+                _httpClient.SendAsync(CreateRequest(HttpMethod.Put, url, token, content)));
         }
 
         public static async Task<HttpResponseMessage> DeleteAsync(string url, string? token = null)
         {
-            return await _httpClient.SendAsync(CreateRequest(HttpMethod.Delete, url, token));
+            return await _retryPolicy.WrapAsync(_circuitBreakerPolicy).ExecuteAsync(() => 
+                _httpClient.SendAsync(CreateRequest(HttpMethod.Delete, url, token)));
         }
     }
 }

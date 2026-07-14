@@ -1,0 +1,8 @@
+﻿Refactor: Nâng cấp kiến trúc DDD, tối ưu hiệu năng và sửa lỗi Memory Leak
+
+- Khôi phục tính toàn vẹn (Invariants) của DDD cho BiometricTemplate (dùng private set).
+- Tối ưu PayslipAppService: Sử dụng IQueryable và Chunking/Batching để chống tràn bộ nhớ (Memory Bloat).
+- Chuyển đổi OfflineAttendanceManager lưu trữ bằng file JSON sang SQLite (EF Core).
+- Fix lỗi rò rỉ bộ nhớ COM Object (zkemkeeper.dll) bằng cách bọc RonaldJackService trong khối IDisposable của FormDeviceSync.
+- Khắc phục các cảnh báo CS8618 (Non-Nullable) và khởi tạo giá trị mặc định cho thuộc tính string.
+- Triển khai module Quản lý Ca làm việc (Shift Management) và tính lương (Tax & Insurance).
