@@ -29,7 +29,7 @@ namespace QuanLyNhanSu.Tests
         private readonly IRepository<LeaveRequest, Guid> _leaveRequestRepository;
         private readonly AttendanceManager _attendanceManager;
         private readonly IGuidGenerator _guidGenerator;
-        private Volo.Abp.EventBus.Local.ILocalEventBus _localEventBus;
+        private Volo.Abp.EventBus.Distributed.IDistributedEventBus _distributedEventBus;
 
         public AttendanceAppServiceTests()
         {
@@ -46,7 +46,7 @@ namespace QuanLyNhanSu.Tests
             var lazyServiceProvider = Substitute.For<IAbpLazyServiceProvider>();
             lazyServiceProvider.LazyGetService<IGuidGenerator>().Returns(_guidGenerator);
 
-            _localEventBus = Substitute.For<Volo.Abp.EventBus.Local.ILocalEventBus>();
+            _distributedEventBus = Substitute.For<Volo.Abp.EventBus.Distributed.IDistributedEventBus>();
 
             _attendanceAppService = new AttendanceAppService(
                 _attendanceRepository,
@@ -55,7 +55,7 @@ namespace QuanLyNhanSu.Tests
                 _branchRepository,
                 _leaveRequestRepository,
                 _attendanceManager,
-                _localEventBus
+                _distributedEventBus
             )
             {
                 LazyServiceProvider = lazyServiceProvider
@@ -87,11 +87,12 @@ namespace QuanLyNhanSu.Tests
 
             // Assert
             count.ShouldBe(2); // Trả về số lượng item nhận được
-            await _localEventBus.Received(1).PublishAsync(
-                Arg.Is<QuanLyNhanSu.Events.BulkSyncRequestedEvent>(e => 
-                    e.AttendanceData.Count == 2 && 
-                    e.AttendanceData[0].UserName == "100"
-                ));
+            await _distributedEventBus.Received(1).PublishAsync(
+                Arg.Is<QuanLyNhanSu.Attendance.AttendancePushedEto>(e => 
+                    e.Logs.Count == 2 && 
+                    e.Logs[0].UserName == "100"
+                )
+            );
         }
     }
 }

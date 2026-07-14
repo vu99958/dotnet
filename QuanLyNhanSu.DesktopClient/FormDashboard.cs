@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR.Client;
 using QuanLyNhanSu.DesktopClient.Services;
 
 namespace QuanLyNhanSu.DesktopClient
@@ -15,6 +16,8 @@ namespace QuanLyNhanSu.DesktopClient
         private string userToken; 
         private string myCurrentRole = "user";
         private string? currentEditUserId = null; 
+        
+        private HubConnection _hubConnection;
 
         // CÁC BIẾN UI CHUNG
         private Panel pnlDashboard = null!, pnlProfile = null!, pnlManageContent = null!, pnlAddEditEmployee = null!;
@@ -60,6 +63,7 @@ namespace QuanLyNhanSu.DesktopClient
             this.Font = new Font("Segoe UI", 10F);
 
             this.FormClosed += (s, e) => Application.Exit();
+            this.Load += FormDashboard_Load;
             
             // Hàm vẽ Dashboard nằm trong file này
             VeGiaoDienDashboard();
@@ -72,8 +76,37 @@ namespace QuanLyNhanSu.DesktopClient
             
             // Refactor UI Layout
             InitializeCustomUI();
-            
-            this.Load += FormDashboard_Load; 
+        }
+
+
+
+        private async Task ConnectSignalRAsync()
+        {
+            try
+            {
+                // [ONBOARDING COMMENT]: Khởi tạo kết nối tới Hub để nhận thông báo đồng bộ chấm công
+                _hubConnection = new HubConnectionBuilder()
+                    .WithUrl("https://localhost:44387/signalr-hubs/notification", options =>
+                    {
+                        options.AccessTokenProvider = () => Task.FromResult(userToken)!;
+                    })
+                    .WithAutomaticReconnect()
+                    .Build();
+
+                _hubConnection.On<string>("ReceiveNotification", (message) =>
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        MessageBox.Show(message, "Thông Báo Hệ Thống (Real-time)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    });
+                });
+
+                await _hubConnection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("SignalR connection failed: " + ex.Message);
+            }
         }
 
         private void VeGiaoDienDashboard()
@@ -448,6 +481,8 @@ namespace QuanLyNhanSu.DesktopClient
 
         private async void FormDashboard_Load(object? sender, EventArgs e)
         {
+            await ConnectSignalRAsync();
+
             try
             {
                 if (string.IsNullOrEmpty(userToken)) return;

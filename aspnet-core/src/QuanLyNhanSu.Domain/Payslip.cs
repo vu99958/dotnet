@@ -27,6 +27,12 @@ namespace QuanLyNhanSu
         // Tổng tiền phạt đi trễ/về sớm
         public decimal TotalPenalty { get; set; }
 
+        // Tiền đóng BHXH (8% BHXH + 1.5% BHYT + 1% BHTN = 10.5% của lương cơ bản)
+        public decimal SocialInsurance { get; set; }
+
+        // Thuế Thu Nhập Cá Nhân (PIT - Tính theo biểu thuế lũy tiến từng phần)
+        public decimal PersonalIncomeTax { get; set; }
+
         public decimal GrossSalary { get; set; }
         public decimal NetSalary { get; set; }
 
@@ -35,7 +41,8 @@ namespace QuanLyNhanSu
         public Payslip(Guid id, Guid userId, int month, int year,
             int standardWorkDays, double actualWorkDays, int approvedLeaveDays,
             int overtimeDays, decimal overtimePay,
-            decimal totalPenalty, decimal grossSalary, decimal netSalary)
+            decimal totalPenalty, decimal socialInsurance, decimal personalIncomeTax,
+            decimal grossSalary, decimal netSalary)
             : base(id)
         {
             UserId = userId;
@@ -47,6 +54,8 @@ namespace QuanLyNhanSu
             OvertimeDays = overtimeDays;
             OvertimePay = overtimePay;
             TotalPenalty = totalPenalty;
+            SocialInsurance = socialInsurance;
+            PersonalIncomeTax = personalIncomeTax;
             GrossSalary = grossSalary;
             NetSalary = netSalary;
         }

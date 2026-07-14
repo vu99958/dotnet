@@ -63,7 +63,7 @@ namespace QuanLyNhanSu.DesktopClient
                     return false;
                 }
 
-                _rjDevice = Activator.CreateInstance(zkemType);
+                _rjDevice = Activator.CreateInstance(zkemType)!;
                 if (_rjDevice == null)
                 {
                     LogMessage("LỖI: Không thể khởi tạo đối tượng COM zkemkeeper!");

@@ -30,6 +30,9 @@ using Volo.Abp.Swashbuckle;
 using Volo.Abp.UI.Navigation.Urls;
 using Volo.Abp.VirtualFileSystem;
 using Volo.Abp.BackgroundJobs.Hangfire;
+using QuanLyNhanSu.Hubs;
+using Volo.Abp.EventBus.RabbitMq;
+using Volo.Abp.AspNetCore.SignalR;
 using Hangfire;
 
 namespace QuanLyNhanSu;
@@ -44,7 +47,9 @@ namespace QuanLyNhanSu;
     typeof(AbpAccountWebOpenIddictModule),
     typeof(AbpAspNetCoreSerilogModule),
     typeof(AbpSwashbuckleModule),
-    typeof(AbpBackgroundJobsHangfireModule)
+    typeof(AbpBackgroundJobsHangfireModule),
+    typeof(AbpEventBusRabbitMqModule),
+    typeof(AbpAspNetCoreSignalRModule)
 )]
 public class QuanLyNhanSuHttpApiHostModule : AbpModule
 {
@@ -74,6 +79,11 @@ public class QuanLyNhanSuHttpApiHostModule : AbpModule
         ConfigureCors(context, configuration);
         ConfigureSwaggerServices(context, configuration);
         ConfigureHangfire(context, configuration);
+
+        Configure<AbpRabbitMqEventBusOptions>(options =>
+        {
+            options.ClientName = "QuanLyNhanSu_Backend";
+        });
     }
 
     private void ConfigureHangfire(ServiceConfigurationContext context, IConfiguration configuration)
@@ -241,6 +251,10 @@ public class QuanLyNhanSuHttpApiHostModule : AbpModule
         // [ONBOARDING COMMENT]: Mở Dashboard quản trị Hangfire tại đường dẫn /hangfire
         app.UseHangfireDashboard("/hangfire");
         
-        app.UseConfiguredEndpoints();
+        // [ONBOARDING COMMENT]: Đăng ký Endpoint cho SignalR Hub
+        app.UseConfiguredEndpoints(endpoints =>
+        {
+            endpoints.MapHub<NotificationHub>("/signalr-hubs/notification");
+        });
     }
 }

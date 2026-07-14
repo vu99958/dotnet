@@ -613,41 +613,22 @@ namespace QuanLyNhanSu.DesktopClient
 
             btnUploadBio.Enabled = false;
             btnUploadBio.Text = "⏳ Đang ghi...";
-            lblBioStatus.Text = "Đang tải dữ liệu từ server...";
+            lblBioStatus.Text = "Đang kết nối Server và đồng bộ...";
 
             try
             {
-                // Bước 1: Tải danh sách mẫu từ Server
-                var templates = await GetBiometricFromServerAsync();
-                if (templates == null || templates.Count == 0)
+                // Sử dụng Agent mới với Zero Memory Leak và Polly
+                var syncAgent = new BiometricSyncAgent(_userToken);
+                var (successCount, failCount) = await syncAgent.SyncTemplatesToDeviceAsync(txtIpAddress.Text.Trim(), (int)nudPort.Value);
+                
+                if (successCount == 0 && failCount == 0)
                 {
                     lblBioStatus.Text = "Server chưa có dữ liệu sinh trắc học nào.";
-                    return;
                 }
-
-                lblBioStatus.Text = $"Đã tải {templates.Count} mẫu. Đang ghi vào máy chấm công...";
-                int successCount = 0, failCount = 0;
-
-                // Bước 2: Ghi từng mẫu vào máy
-                foreach (var tpl in templates)
+                else
                 {
-                    bool ok;
-                    if (tpl.TemplateType == "Fingerprint")
-                    {
-                        ok = _deviceService.SetFingerprint(tpl.EnrollNumber, tpl.FingerIndex, tpl.TemplateData, tpl.TemplateLength);
-                    }
-                    else // Face
-                    {
-                        ok = _deviceService.SetFaceTemplate(tpl.EnrollNumber, tpl.TemplateData, tpl.TemplateLength);
-                    }
-
-                    if (ok) successCount++; else failCount++;
+                    lblBioStatus.Text = $"✅ Hoàn tất: {successCount} mẫu ghi thành công, {failCount} thất bại.";
                 }
-
-                // Bước 3: Làm mới bộ nhớ trên máy
-                _deviceService.RefreshDeviceData();
-
-                lblBioStatus.Text = $"✅ Hoàn tất: {successCount} mẫu ghi thành công, {failCount} thất bại.";
             }
             catch (Exception ex)
             {

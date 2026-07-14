@@ -138,7 +138,27 @@ namespace QuanLyNhanSu.Payroll.BackgroundJobs
                     decimal regularDays = (decimal)totalPaidDays;
                     decimal grossSalary = (dailySalary * regularDays) + profile.Allowance + overtimePay - totalPenalty;
                     if (grossSalary < 0) grossSalary = 0;
-                    decimal netSalary = grossSalary * netSalaryRate;
+
+                    // [ONBOARDING COMMENT]: Tính BHXH = 10.5% Lương Cơ Bản
+                    decimal socialInsurance = profile.BaseSalary * 0.105m;
+                    if (grossSalary < socialInsurance) socialInsurance = grossSalary; 
+
+                    // [ONBOARDING COMMENT]: Tính Thuế TNCN (PIT) lũy tiến
+                    decimal personalDeduction = 11000000m;
+                    decimal assessableIncome = grossSalary - socialInsurance - personalDeduction;
+                    decimal pit = 0;
+                    if (assessableIncome > 0)
+                    {
+                        if (assessableIncome <= 5000000m) pit = assessableIncome * 0.05m;
+                        else if (assessableIncome <= 10000000m) pit = 250000m + (assessableIncome - 5000000m) * 0.10m;
+                        else if (assessableIncome <= 18000000m) pit = 750000m + (assessableIncome - 10000000m) * 0.15m;
+                        else if (assessableIncome <= 32000000m) pit = 1950000m + (assessableIncome - 18000000m) * 0.20m;
+                        else if (assessableIncome <= 52000000m) pit = 4750000m + (assessableIncome - 32000000m) * 0.25m;
+                        else if (assessableIncome <= 80000000m) pit = 9750000m + (assessableIncome - 52000000m) * 0.30m;
+                        else pit = 18150000m + (assessableIncome - 80000000m) * 0.35m;
+                    }
+
+                    decimal netSalary = grossSalary - socialInsurance - pit;
 
                     if (!existingPayslipsDict.TryGetValue(userId, out var payslip))
                     {
@@ -147,7 +167,7 @@ namespace QuanLyNhanSu.Payroll.BackgroundJobs
                             userId, args.Month, args.Year,
                             standardWorkDays, actualWorkDays, approvedLeaveDays,
                             overtimeDays, overtimePay,
-                            totalPenalty, grossSalary, netSalary
+                            totalPenalty, socialInsurance, pit, grossSalary, netSalary
                         );
                         payslipsToInsert.Add(payslip);
                     }
@@ -159,6 +179,8 @@ namespace QuanLyNhanSu.Payroll.BackgroundJobs
                         payslip.OvertimeDays = overtimeDays;
                         payslip.OvertimePay = overtimePay;
                         payslip.TotalPenalty = totalPenalty;
+                        payslip.SocialInsurance = socialInsurance;
+                        payslip.PersonalIncomeTax = pit;
                         payslip.GrossSalary = grossSalary;
                         payslip.NetSalary = netSalary;
                         payslipsToUpdate.Add(payslip);

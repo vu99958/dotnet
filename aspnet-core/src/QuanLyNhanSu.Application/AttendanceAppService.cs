@@ -22,7 +22,7 @@ namespace QuanLyNhanSu
         private readonly IRepository<Branch, Guid> _branchRepository;
         private readonly IRepository<LeaveRequest, Guid> _leaveRequestRepository;
         private readonly AttendanceManager _attendanceManager;
-        private readonly Volo.Abp.EventBus.Local.ILocalEventBus _localEventBus;
+        private readonly Volo.Abp.EventBus.Distributed.IDistributedEventBus _distributedEventBus;
 
         public AttendanceAppService(
             IRepository<AttendanceRecord, Guid> attendanceRepository,
@@ -31,7 +31,7 @@ namespace QuanLyNhanSu
             IRepository<Branch, Guid> branchRepository,
             IRepository<LeaveRequest, Guid> leaveRequestRepository,
             AttendanceManager attendanceManager,
-            Volo.Abp.EventBus.Local.ILocalEventBus localEventBus)
+            Volo.Abp.EventBus.Distributed.IDistributedEventBus distributedEventBus)
         {
             _attendanceRepository = attendanceRepository;
             _userRepository = userRepository;
@@ -39,7 +39,7 @@ namespace QuanLyNhanSu
             _branchRepository = branchRepository;
             _leaveRequestRepository = leaveRequestRepository;
             _attendanceManager = attendanceManager;
-            _localEventBus = localEventBus;
+            _distributedEventBus = distributedEventBus;
         }
 
         // ==========================================
@@ -50,16 +50,21 @@ namespace QuanLyNhanSu
         {
             if (inputList == null || !inputList.Any()) return 0;
 
-            // [ONBOARDING COMMENT]: Đẩy dữ liệu vào LocalEventBus (hoặc RabbitMQ nếu cấu hình)
-            // Đây là Event-Driven Architecture, giúp API trả kết quả ngay lập tức (202 Accepted)
-            // Thay vì bắt Client chờ hàm InsertManyAsync xử lý xong.
-            var eventData = new QuanLyNhanSu.Events.BulkSyncRequestedEvent
-            {
-                AttendanceData = inputList,
-                RequestTime = DateTime.UtcNow
+            // [ONBOARDING COMMENT]: Bắn Message vào RabbitMQ. Không dùng await gò bó quá lâu, trả về ngay lập tức để máy chấm công nghỉ ngơi.
+            var eto = new QuanLyNhanSu.Attendance.AttendancePushedEto 
+            { 
+                Logs = inputList.Select(x => new QuanLyNhanSu.Attendance.AttendanceLogEto
+                {
+                    UserName = x.UserName,
+                    TimeStamp = x.TimeStamp,
+                    CheckType = x.CheckType,
+                    VerifyMethod = x.VerifyMethod,
+                    DeviceUserId = x.DeviceUserId
+                }).ToList(),
+                BranchName = "Unknown" // Hoặc lấy từ header/user
             };
 
-            await _localEventBus.PublishAsync(eventData);
+            await _distributedEventBus.PublishAsync(eto);
 
             // Trả về số lượng record đã nhận để Client biết.
             return inputList.Count;
