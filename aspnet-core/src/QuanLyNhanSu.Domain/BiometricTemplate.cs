@@ -19,46 +19,57 @@ namespace QuanLyNhanSu.Domain
         /// ID của nhân viên trong hệ thống (FK đến IdentityUser).
         /// Có thể null nếu chưa map được từ EnrollNumber sang UserId.
         /// </summary>
-        public Guid? UserId { get; set; }
+        public Guid? UserId { get; private set; }
 
         /// <summary>
         /// Mã nhân viên trên máy chấm công (EnrollNumber).
         /// Đây là key chính để đồng bộ giữa các máy.
         /// </summary>
-        public string EnrollNumber { get; set; } = null!;
+        public string EnrollNumber { get; private set; } = string.Empty;
 
         /// <summary>
         /// Loại sinh trắc học: "Fingerprint" hoặc "Face"
         /// </summary>
-        public BiometricType TemplateType { get; set; }
+        public BiometricType TemplateType { get; private set; }
 
         /// <summary>
         /// Chỉ số ngón tay (0-9). Đặt -1 nếu là khuôn mặt.
         /// 0=Ngón cái trái, 1=Ngón trỏ trái, ..., 5=Ngón cái phải, ...
         /// </summary>
-        public int FingerIndex { get; set; }
+        public int FingerIndex { get; private set; }
 
         /// <summary>
         /// Dữ liệu mẫu sinh trắc học (chuỗi template gốc từ SDK ZKTeco).
         /// Đối với vân tay: chuỗi hex/base64 từ SSR_GetUserTmpStr().
         /// Đối với khuôn mặt: chuỗi hex/base64 từ GetUserFaceStr().
         /// </summary>
-        public string TemplateData { get; set; } = null!;
+        public string TemplateData { get; private set; } = string.Empty;
 
         /// <summary>
         /// Kích thước dữ liệu template (byte)
         /// </summary>
-        public int TemplateLength { get; set; }
+        public int TemplateLength { get; private set; }
 
         /// <summary>
         /// Serial Number của thiết bị đã đăng ký mẫu gốc (dùng để truy vết nguồn)
         /// </summary>
-        public string? SourceDeviceSerial { get; set; }
+        public string? SourceDeviceSerial { get; private set; }
 
         /// <summary>
         /// Thời điểm đăng ký mẫu sinh trắc học
         /// </summary>
-        public DateTime RegisteredAt { get; set; }
+        public DateTime RegisteredAt { get; private set; }
+
+        public void UpdateTemplate(string newData, int newLength, string? newSerial)
+        {
+            if (string.IsNullOrWhiteSpace(newData)) 
+                throw new ArgumentException("Dữ liệu template không được để trống", nameof(newData));
+            
+            TemplateData = newData;
+            TemplateLength = newLength;
+            SourceDeviceSerial = newSerial;
+            RegisteredAt = DateTime.Now;
+        }
 
         // Hàm khởi tạo mặc định (bắt buộc cho Entity Framework)
         protected BiometricTemplate() { }

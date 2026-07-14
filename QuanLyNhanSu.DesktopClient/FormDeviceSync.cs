@@ -753,11 +753,17 @@ namespace QuanLyNhanSu.DesktopClient
             lblSyncStatus.Text = message;
         }
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
+        // [ONBOARDING COMMENT]: Đảm bảo giải phóng tài nguyên unmanaged (COM Object) khi Form bị hủy
+        protected override void Dispose(bool disposing)
         {
-            base.OnFormClosing(e);
-            _pingTimer?.Stop(); _pingTimer?.Dispose();
-            _deviceService.Dispose();
+            if (disposing)
+            {
+                _pingTimer?.Stop();
+                _pingTimer?.Dispose();
+            }
+            
+            _deviceService?.Dispose();
+            base.Dispose(disposing);
         }
 
         #endregion

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using QuanLyNhanSu.MultiTenancy;
 using Volo.Abp.AuditLogging;
@@ -60,6 +60,10 @@ public class QuanLyNhanSuDomainModule : AbpModule
         {
             options.IsEnabled = MultiTenancyConsts.IsEnabled;
         });
+
+        // Đăng ký cấu hình PayrollOptions từ appsettings.json
+        var configuration = context.Services.GetConfiguration();
+        Configure<QuanLyNhanSu.Domain.Payroll.PayrollOptions>(configuration.GetSection("Payroll"));
 
 #if DEBUG
         context.Services.Replace(ServiceDescriptor.Singleton<IEmailSender, NullEmailSender>());

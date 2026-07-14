@@ -62,6 +62,10 @@ public class QuanLyNhanSuDbContext :
     public DbSet<PayslipComplaint> PayslipComplaints { get; set; }
     public DbSet<Branch> Branches { get; set; } // Bảng chi nhánh (Geofencing đa điểm)
     public DbSet<BiometricTemplate> BiometricTemplates { get; set; } // Bảng sinh trắc học (vân tay/khuôn mặt)
+    
+    // Shift Management
+    public DbSet<QuanLyNhanSu.Domain.Shifts.Shift> Shifts { get; set; }
+    public DbSet<QuanLyNhanSu.Domain.Shifts.EmployeeShift> EmployeeShifts { get; set; }
 
     #endregion
 
@@ -138,6 +142,20 @@ public class QuanLyNhanSuDbContext :
             b.ConfigureByConvention();
             // DESIGN-02: Đảm bảo 1 user chỉ có 1 UserKey (Bảo vệ khỏi Race Condition)
             b.HasIndex(x => x.UserId).IsUnique();
+        });
+
+        builder.Entity<QuanLyNhanSu.Domain.Shifts.Shift>(b =>
+        {
+            b.ToTable("AppShifts");
+            b.ConfigureByConvention();
+        });
+
+        builder.Entity<QuanLyNhanSu.Domain.Shifts.EmployeeShift>(b =>
+        {
+            b.ToTable("AppEmployeeShifts");
+            b.ConfigureByConvention();
+            // Mỗi nhân viên 1 ngày chỉ có 1 ca làm việc
+            b.HasIndex(x => new { x.UserId, x.WorkDate }).IsUnique();
         });
 
         builder.ConfigurePermissionManagement();

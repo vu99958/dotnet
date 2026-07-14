@@ -51,11 +51,8 @@ namespace QuanLyNhanSu
 
                 if (existing != null)
                 {
-                    // Đã tồn tại → Cập nhật dữ liệu template mới
-                    existing.TemplateData = dto.TemplateData;
-                    existing.TemplateLength = dto.TemplateLength;
-                    existing.SourceDeviceSerial = dto.SourceDeviceSerial;
-                    existing.RegisteredAt = DateTime.Now;
+                    // Đã tồn tại → Cập nhật dữ liệu template mới thông qua Domain Method
+                    existing.UpdateTemplate(dto.TemplateData, dto.TemplateLength, dto.SourceDeviceSerial);
 
                     await _biometricRepository.UpdateAsync(existing);
                 }
